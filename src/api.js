@@ -1,9 +1,9 @@
 // Cloudflare Workers KV API utilities for Jessipes
-// Replace endpoint URLs with your deployed Worker endpoints
+
+const API_URL = import.meta.env.VITE_WORKER_URL || 'http://localhost:8787';
 
 export async function fetchRecipes(secret) {
-    // Example: GET /api/recipes
-    const res = await fetch('https://your-worker-url/recipes', {
+    const res = await fetch(`${API_URL}/recipes`, {
         headers: { Authorization: secret },
     });
     if (!res.ok) throw new Error('Failed to fetch recipes');
@@ -17,7 +17,7 @@ export async function addRecipe(secret, recipe) {
     if (recipe.title) formData.append('title', recipe.title);
     if (recipe.url) formData.append('url', recipe.url);
     if (recipe.text) formData.append('text', recipe.text);
-    const res = await fetch('https://your-worker-url/recipes', {
+    const res = await fetch(`${API_URL}/recipes`, {
         method: 'POST',
         headers: { Authorization: secret },
         body: formData,
@@ -28,7 +28,7 @@ export async function addRecipe(secret, recipe) {
 
 export async function softDeleteRecipe(secret, id) {
     // Example: PATCH /api/recipes/:id
-    const res = await fetch(`https://your-worker-url/recipes/${id}`, {
+    const res = await fetch(`${API_URL}/recipes/${id}`, {
         method: 'PATCH',
         headers: {
             Authorization: secret,
