@@ -54,7 +54,7 @@ function App() {
     e.preventDefault();
     try {
       const addedRecipe = await addRecipe(secret, newRecipe);
-      setRecipes([...recipes, addedRecipe]);
+      setRecipes([addedRecipe, ...recipes]);
       setShowAdd(false);
       setNewRecipe({ url: '', photo: null, title: '', text: '' });
     } catch (error) {

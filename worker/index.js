@@ -58,8 +58,11 @@ export default {
                                 return recipe && !recipe.deleted ? { id: key.name, ...recipe } : null;
                             })
                         );
+                        const filteredRecipes = recipeData.filter(r => r !== null);
+                        // Sort by creation date, newest first
+                        filteredRecipes.sort((a, b) => new Date(b.created) - new Date(a.created));
                         return new Response(
-                            JSON.stringify(recipeData.filter(r => r !== null)),
+                            JSON.stringify(filteredRecipes),
                             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                         );
 
