@@ -17,21 +17,12 @@ export default {
             }
 
             const url = new URL(request.url);
-            const auth = request.headers.get('Authorization');
 
-            // Verify authorization
-            if (!auth || auth !== env.API_SECRET) {
-                return new Response('Unauthorized', {
-                    status: 401,
-                    headers: corsHeaders
-                });
-            }
-
-            // Handle photo requests
+            // Handle photo requests first (public access)
             if (url.pathname.startsWith('/photos/')) {
                 const photoId = url.pathname.split('/photos/')[1];
                 const photo = await env.PHOTOS.get(`photos/${photoId}`);
-                
+
                 if (!photo) {
                     return new Response('Photo not found', { status: 404 });
                 }
@@ -42,6 +33,16 @@ export default {
                         'Content-Type': photo.httpMetadata?.contentType || 'image/jpeg',
                         'Cache-Control': 'public, max-age=31536000',
                     }
+                });
+            }
+
+            const auth = request.headers.get('Authorization');
+
+            // Verify authorization for all other endpoints
+            if (!auth || auth !== env.API_SECRET) {
+                return new Response('Unauthorized', {
+                    status: 401,
+                    headers: corsHeaders
                 });
             }
 
@@ -77,14 +78,14 @@ export default {
                         if (photo && photo.size > 0) {
                             const photoId = crypto.randomUUID();
                             const photoKey = `photos/${photoId}`;
-                            
+
                             // Upload to R2
                             await env.PHOTOS.put(photoKey, photo, {
                                 httpMetadata: {
                                     contentType: photo.type,
                                 }
                             });
-                            
+
                             // Store the R2 URL
                             recipe.photo = `${url.origin}/photos/${photoId}`;
                         }
