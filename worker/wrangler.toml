@@ -2,9 +2,6 @@ name = "jessipes-worker"
 main = "index.js"
 compatibility_date = "2023-08-29"
 
-[vars]
-API_SECRET = ""
-
 [[kv_namespaces]]
 binding = "RECIPES"
 id = "13afa2648a174785a4348ac6221f43fd"

@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import './App.css';
+import { fetchRecipes, addRecipe, softDeleteRecipe } from './api';
 
 const LOCAL_SECRET_KEY = 'jessipes_cloudflare_secret';
 
@@ -15,7 +16,7 @@ function App() {
 
   useEffect(() => {
     if (secret) {
-      fetchRecipes();
+      loadRecipes();
     }
   }, [secret]);
 
@@ -24,37 +25,40 @@ function App() {
     setSecret(inputSecret);
   }
 
-  async function fetchRecipes() {
+  async function loadRecipes() {
     setLoading(true);
-    // Placeholder: Replace with actual Cloudflare KV fetch
-    // Example: fetch('/api/recipes', { headers: { Authorization: secret } })
-    setTimeout(() => {
-      setRecipes([
-        { id: '1', title: 'Spaghetti', url: 'https://example.com/spaghetti', deleted: false },
-        { id: '2', title: 'Salad', text: 'Lettuce, tomato, dressing', deleted: false },
-      ]);
+    try {
+      const data = await fetchRecipes(secret);
+      setRecipes(data);
+    } catch (error) {
+      console.error('Failed to fetch recipes:', error);
+      alert('Failed to fetch recipes. Please check your secret key and try again.');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   }
 
-  function handleAddRecipe(e) {
+  async function handleAddRecipe(e) {
     e.preventDefault();
-    // Placeholder: Replace with actual upload logic
-    setRecipes([
-      ...recipes,
-      {
-        id: Date.now().toString(),
-        ...newRecipe,
-        deleted: false,
-      },
-    ]);
-    setShowAdd(false);
-    setNewRecipe({ url: '', photo: null, title: '', text: '' });
+    try {
+      const addedRecipe = await addRecipe(secret, newRecipe);
+      setRecipes([...recipes, addedRecipe]);
+      setShowAdd(false);
+      setNewRecipe({ url: '', photo: null, title: '', text: '' });
+    } catch (error) {
+      console.error('Failed to add recipe:', error);
+      alert('Failed to add recipe. Please try again.');
+    }
   }
 
-  function handleDelete(id) {
-    setRecipes(recipes.map(r => r.id === id ? { ...r, deleted: true } : r));
-    // Placeholder: Soft delete in KV
+  async function handleDelete(id) {
+    try {
+      const updatedRecipe = await softDeleteRecipe(secret, id);
+      setRecipes(recipes.map(r => r.id === id ? updatedRecipe : r));
+    } catch (error) {
+      console.error('Failed to delete recipe:', error);
+      alert('Failed to delete recipe. Please try again.');
+    }
   }
 
   if (!secret) {
