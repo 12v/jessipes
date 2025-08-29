@@ -27,6 +27,24 @@ export default {
                 });
             }
 
+            // Handle photo requests
+            if (url.pathname.startsWith('/photos/')) {
+                const photoId = url.pathname.split('/photos/')[1];
+                const photo = await env.PHOTOS.get(`photos/${photoId}`);
+                
+                if (!photo) {
+                    return new Response('Photo not found', { status: 404 });
+                }
+
+                return new Response(photo.body, {
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': photo.httpMetadata?.contentType || 'image/jpeg',
+                        'Cache-Control': 'public, max-age=31536000',
+                    }
+                });
+            }
+
             // Route handling
             if (url.pathname === '/recipes') {
                 switch (request.method) {
@@ -51,9 +69,25 @@ export default {
                             title: formData.get('title'),
                             url: formData.get('url'),
                             text: formData.get('text'),
-                            photo: formData.get('photo'),
                             created: new Date().toISOString(),
                         };
+
+                        // Handle photo upload
+                        const photo = formData.get('photo');
+                        if (photo && photo.size > 0) {
+                            const photoId = crypto.randomUUID();
+                            const photoKey = `photos/${photoId}`;
+                            
+                            // Upload to R2
+                            await env.PHOTOS.put(photoKey, photo, {
+                                httpMetadata: {
+                                    contentType: photo.type,
+                                }
+                            });
+                            
+                            // Store the R2 URL
+                            recipe.photo = `${url.origin}/photos/${photoId}`;
+                        }
 
                         const id = crypto.randomUUID();
                         await env.RECIPES.put(id, JSON.stringify(recipe));

@@ -15,27 +15,39 @@ function App() {
   const [addType, setAddType] = useState('url');
 
   useEffect(() => {
-    if (secret) {
-      loadRecipes();
+    let mounted = true;
+
+    async function fetchData() {
+      if (secret) {
+        setLoading(true);
+        try {
+          const data = await fetchRecipes(secret);
+          if (mounted) {
+            setRecipes(data);
+          }
+        } catch (error) {
+          if (mounted) {
+            console.error('Failed to fetch recipes:', error);
+            alert('Failed to fetch recipes. Please check your secret key and try again.');
+          }
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
+        }
+      }
     }
+
+    fetchData();
+
+    return () => {
+      mounted = false;
+    };
   }, [secret]);
 
   function saveSecret() {
     localStorage.setItem(LOCAL_SECRET_KEY, inputSecret);
     setSecret(inputSecret);
-  }
-
-  async function loadRecipes() {
-    setLoading(true);
-    try {
-      const data = await fetchRecipes(secret);
-      setRecipes(data);
-    } catch (error) {
-      console.error('Failed to fetch recipes:', error);
-      alert('Failed to fetch recipes. Please check your secret key and try again.');
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function handleAddRecipe(e) {
@@ -87,7 +99,7 @@ function App() {
         </button>
       )}
       {showAdd && (
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleAddRecipe} className="add-form">
           <select value={addType} onChange={e => setAddType(e.target.value)}>
             <option value="url">URL</option>
             <option value="photo">Photo</option>
@@ -132,20 +144,24 @@ function App() {
         <ul className="recipe-list">
           {recipes.filter(r => !r.deleted).map(recipe => (
             <li key={recipe.id} className="recipe-item">
-              {recipe.url ? (
-                <>
-                  <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-title">
-                    <strong>{recipe.title}</strong>
-                  </a>
-                  <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
-                    {recipe.url}
-                  </a>
-                </>
-              ) : (
-                <strong>{recipe.title || 'Untitled'}</strong>
+              <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
+              {recipe.url && (
+                <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
+                  {recipe.url}
+                </a>
               )}
               {recipe.text && <p>{recipe.text}</p>}
-              {/* Photo preview not implemented in placeholder */}
+              {recipe.photo && (
+                <img
+                  src={recipe.photo}
+                  alt={recipe.title}
+                  style={{
+                    maxWidth: '100%',
+                    borderRadius: '8px',
+                    marginTop: '0.5em'
+                  }}
+                />
+              )}
               <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
             </li>
           ))}

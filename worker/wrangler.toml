@@ -5,3 +5,7 @@ compatibility_date = "2023-08-29"
 [[kv_namespaces]]
 binding = "RECIPES"
 id = "13afa2648a174785a4348ac6221f43fd"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "jessipes-photos"
