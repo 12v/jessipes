@@ -144,11 +144,15 @@ function App() {
         <ul className="recipe-list">
           {recipes.filter(r => !r.deleted).map(recipe => (
             <li key={recipe.id} className="recipe-item">
-              <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
-              {recipe.url && (
-                <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
-                  {recipe.url}
+              {recipe.url ? (
+                <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-title-link">
+                  <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
                 </a>
+              ) : (
+                <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
+              )}
+              {recipe.url && (
+                <div className="recipe-url">{recipe.url}</div>
               )}
               {recipe.text && <p>{recipe.text}</p>}
               {recipe.photo && (
