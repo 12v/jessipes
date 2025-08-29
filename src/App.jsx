@@ -83,7 +83,7 @@ function App() {
           value={inputSecret}
           onChange={e => setInputSecret(e.target.value)}
           placeholder="Secret code"
-          style={{ width: '100%', padding: '1em', fontSize: '1em' }}
+          style={{ width: '100%', padding: '1em', fontSize: '1em', boxSizing: 'border-box' }}
         />
         <button onClick={saveSecret} style={{ width: '100%', marginTop: '1em' }}>Save</button>
       </div>
@@ -152,7 +152,9 @@ function App() {
                 <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
               )}
               {recipe.url && (
-                <div className="recipe-url">{recipe.url}</div>
+                <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
+                  {recipe.url}
+                </a>
               )}
               {recipe.text && <p>{recipe.text}</p>}
               {recipe.photo && (
