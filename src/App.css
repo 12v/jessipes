@@ -1,11 +1,10 @@
-
 .container {
   max-width: 400px;
   margin: 0 auto;
   padding: 1em;
   background: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   text-align: left;
 }
 
@@ -54,6 +53,7 @@ h1 {
   font-size: 0.9em;
   margin-top: 0.5em;
 }
+
 .delete-btn:hover {
   background: #d9363e;
 }

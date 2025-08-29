@@ -29,6 +29,3 @@ npm run dev
 ```bash
 npm run build
 ```
-
----
-This project is inspired by [lfgss](https://github.com/12v/lfgss).
