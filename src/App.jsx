@@ -81,19 +81,25 @@ function App() {
   return (
     <div className="container">
       <h1>Jessipes</h1>
-      <button onClick={() => setShowAdd(!showAdd)} style={{ width: '100%', marginBottom: '1em' }}>
-        {showAdd ? 'Cancel' : 'Add Recipe'}
-      </button>
+      {!showAdd && (
+        <button onClick={() => setShowAdd(true)} style={{ width: '100%', marginBottom: '1em' }}>
+          Add Recipe
+        </button>
+      )}
       {showAdd && (
-        <form onSubmit={handleAddRecipe} className="add-form">
-          <label>
-            Type:
-            <select value={addType} onChange={e => setAddType(e.target.value)}>
-              <option value="url">URL</option>
-              <option value="photo">Photo + Title</option>
-              <option value="text">Text</option>
-            </select>
-          </label>
+        <form onSubmit={handleSubmit}>
+          <select value={addType} onChange={e => setAddType(e.target.value)}>
+            <option value="url">URL</option>
+            <option value="photo">Photo</option>
+            <option value="text">Text</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Recipe Title"
+            value={newRecipe.title}
+            onChange={e => setNewRecipe({ ...newRecipe, title: e.target.value })}
+            required
+          />
           {addType === 'url' && (
             <input
               type="url"
@@ -104,40 +110,40 @@ function App() {
             />
           )}
           {addType === 'photo' && (
-            <>
-              <input
-                type="text"
-                placeholder="Title"
-                value={newRecipe.title}
-                onChange={e => setNewRecipe({ ...newRecipe, title: e.target.value })}
-                required
-              />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={e => setNewRecipe({ ...newRecipe, photo: e.target.files[0] })}
-                required
-              />
-            </>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={e => setNewRecipe({ ...newRecipe, photo: e.target.files[0] })}
+              required
+            />
           )}
           {addType === 'text' && (
             <textarea
-              placeholder="Recipe text"
+              placeholder="Recipe Instructions"
               value={newRecipe.text}
               onChange={e => setNewRecipe({ ...newRecipe, text: e.target.value })}
               required
             />
           )}
-          <button type="submit" style={{ width: '100%', marginTop: '1em' }}>Submit</button>
+          <button type="submit">Add Recipe</button>
         </form>
       )}
-      <h2>Recipes</h2>
       {loading ? <p>Loading...</p> : (
         <ul className="recipe-list">
           {recipes.filter(r => !r.deleted).map(recipe => (
             <li key={recipe.id} className="recipe-item">
-              <strong>{recipe.title || recipe.url || 'Untitled'}</strong>
-              {recipe.url && <a href={recipe.url} target="_blank" rel="noopener noreferrer">View</a>}
+              {recipe.url ? (
+                <>
+                  <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-title">
+                    <strong>{recipe.title}</strong>
+                  </a>
+                  <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
+                    {recipe.url}
+                  </a>
+                </>
+              ) : (
+                <strong>{recipe.title || 'Untitled'}</strong>
+              )}
               {recipe.text && <p>{recipe.text}</p>}
               {/* Photo preview not implemented in placeholder */}
               <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
