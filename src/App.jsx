@@ -28,7 +28,7 @@ function App() {
         } catch (error) {
           if (mounted) {
             console.error('Failed to fetch recipes:', error);
-            alert('Failed to fetch recipes. Please check your secret key and try again.');
+            alert('Failed to fetch recipes. Please check your secret code and try again.');
           }
         } finally {
           if (mounted) {
@@ -77,12 +77,12 @@ function App() {
     return (
       <div className="container">
         <h1>Jessipes</h1>
-        <p>Enter your Cloudflare secret to get started:</p>
+        <p>Enter your secret code to get started:</p>
         <input
           type="password"
           value={inputSecret}
           onChange={e => setInputSecret(e.target.value)}
-          placeholder="Cloudflare secret"
+          placeholder="Secret code"
           style={{ width: '100%', padding: '1em', fontSize: '1em' }}
         />
         <button onClick={saveSecret} style={{ width: '100%', marginTop: '1em' }}>Save</button>

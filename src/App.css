@@ -9,8 +9,8 @@
 body {
   margin: 0;
   padding: 0;
-  background: white;
-  color: var(--text);
+  background: var(--primary);
+  color: white;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -18,7 +18,7 @@ body {
   max-width: 600px;
   margin: 2rem auto;
   padding: 2rem;
-  background: white;
+  background: var(--primary);
   text-align: left;
 }
 
@@ -26,6 +26,10 @@ h1 {
   font-size: 2em;
   margin-bottom: 0.5em;
   text-align: center;
+  color: white;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
 }
 
 .add-form {
@@ -53,18 +57,20 @@ h1 {
 }
 
 button {
-  background: var(--primary);
-  color: white;
+  background: white;
+  color: var(--primary);
   border: none;
   border-radius: 8px;
   padding: 0.75em 1.5em;
   font-size: 1em;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  font-weight: 600;
 }
 
 button:hover {
-  background: var(--primary-dark);
+  background: #f8f8f8;
+  transform: translateY(-1px);
 }
 
 .recipe-list {
@@ -86,7 +92,8 @@ button:hover {
 
 .recipe-item:hover {
   transform: translateY(-2px);
-  border-color: var(--primary);
+  border-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .recipe-item strong {
@@ -131,8 +138,8 @@ button:hover {
 
 .delete-btn {
   background: transparent;
-  color: var(--primary);
-  border: 2px solid var(--primary);
+  color: #666;
+  border: 2px solid #ddd;
   border-radius: 8px;
   padding: 0.5em;
   cursor: pointer;
@@ -142,8 +149,9 @@ button:hover {
 }
 
 .delete-btn:hover {
-  background: var(--primary);
+  background: #f44336;
   color: white;
+  border-color: #f44336;
 }
 
 @media (max-width: 600px) {
