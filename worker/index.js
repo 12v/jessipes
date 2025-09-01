@@ -49,7 +49,7 @@ export default {
             // Route handling
             if (url.pathname === '/recipes') {
                 switch (request.method) {
-                    case 'GET':
+                    case 'GET': {
                         // Get all recipes
                         const recipes = await env.RECIPES.list();
                         const recipeData = await Promise.all(
@@ -65,8 +65,9 @@ export default {
                             JSON.stringify(filteredRecipes),
                             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                         );
+                    }
 
-                    case 'POST':
+                    case 'POST': {
                         // Add new recipe
                         const formData = await request.formData();
                         const recipe = {
@@ -100,10 +101,11 @@ export default {
                             JSON.stringify({ id, ...recipe }),
                             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                         );
+                    }
                 }
             }
 
-            // Handle soft delete
+            // Handle recipe updates (including soft delete)
             const recipeMatch = url.pathname.match(/^\/recipes\/(.+)$/);
             if (recipeMatch && request.method === 'PATCH') {
                 const id = recipeMatch[1];
@@ -113,7 +115,8 @@ export default {
                     return new Response('Recipe not found', { status: 404 });
                 }
 
-                const updatedRecipe = { ...recipe, deleted: true };
+                const body = await request.json();
+                const updatedRecipe = { ...recipe, ...body };
                 await env.RECIPES.put(id, JSON.stringify(updatedRecipe));
 
                 return new Response(

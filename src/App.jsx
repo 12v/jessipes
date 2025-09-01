@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import './App.css';
-import { fetchRecipes, addRecipe, softDeleteRecipe } from './api';
+import { fetchRecipes, addRecipe, softDeleteRecipe, updateRecipe } from './api';
 
 const LOCAL_SECRET_KEY = 'jessipes_cloudflare_secret';
 
@@ -13,6 +13,8 @@ function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [newRecipe, setNewRecipe] = useState({ url: '', photo: null, title: '', text: '' });
   const [addType, setAddType] = useState('url');
+  const [editingRecipe, setEditingRecipe] = useState(null);
+  const [editData, setEditData] = useState({ title: '', text: '' });
 
   useEffect(() => {
     let mounted = true;
@@ -54,7 +56,7 @@ function App() {
     e.preventDefault();
     try {
       const addedRecipe = await addRecipe(secret, newRecipe);
-      setRecipes([addedRecipe, ...recipes]);
+      setRecipes(prev => [addedRecipe, ...prev]);
       setShowAdd(false);
       setNewRecipe({ url: '', photo: null, title: '', text: '' });
     } catch (error) {
@@ -66,10 +68,33 @@ function App() {
   async function handleDelete(id) {
     try {
       const updatedRecipe = await softDeleteRecipe(secret, id);
-      setRecipes(recipes.map(r => r.id === id ? updatedRecipe : r));
+      setRecipes(prev => prev.map(r => r.id === id ? updatedRecipe : r));
     } catch (error) {
       console.error('Failed to delete recipe:', error);
       alert('Failed to delete recipe. Please try again.');
+    }
+  }
+
+  function startEdit(recipe) {
+    setEditingRecipe(recipe.id);
+    setEditData({ title: recipe.title || '', text: recipe.text || '' });
+  }
+
+  function cancelEdit() {
+    setEditingRecipe(null);
+    setEditData({ title: '', text: '' });
+  }
+
+  async function handleUpdateRecipe(e) {
+    e.preventDefault();
+    try {
+      const updatedRecipe = await updateRecipe(secret, editingRecipe, editData);
+      setRecipes(prev => prev.map(r => r.id === editingRecipe ? updatedRecipe : r));
+      setEditingRecipe(null);
+      setEditData({ title: '', text: '' });
+    } catch (error) {
+      console.error('Failed to update recipe:', error);
+      alert('Failed to update recipe. Please try again.');
     }
   }
 
@@ -113,21 +138,35 @@ function App() {
             required
           />
           {addType === 'url' && (
-            <input
-              type="url"
-              placeholder="Recipe URL"
-              value={newRecipe.url}
-              onChange={e => setNewRecipe({ ...newRecipe, url: e.target.value })}
-              required
-            />
+            <>
+              <input
+                type="url"
+                placeholder="Recipe URL"
+                value={newRecipe.url}
+                onChange={e => setNewRecipe({ ...newRecipe, url: e.target.value })}
+                required
+              />
+              <textarea
+                placeholder="Additional notes (optional)"
+                value={newRecipe.text}
+                onChange={e => setNewRecipe({ ...newRecipe, text: e.target.value })}
+              />
+            </>
           )}
           {addType === 'photo' && (
-            <input
-              type="file"
-              accept="image/*"
-              onChange={e => setNewRecipe({ ...newRecipe, photo: e.target.files[0] })}
-              required
-            />
+            <>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => setNewRecipe({ ...newRecipe, photo: e.target.files[0] })}
+                required
+              />
+              <textarea
+                placeholder="Additional notes (optional)"
+                value={newRecipe.text}
+                onChange={e => setNewRecipe({ ...newRecipe, text: e.target.value })}
+              />
+            </>
           )}
           {addType === 'text' && (
             <textarea
@@ -144,31 +183,57 @@ function App() {
         <ul className="recipe-list">
           {recipes.filter(r => !r.deleted).map(recipe => (
             <li key={recipe.id} className="recipe-item">
-              {recipe.url ? (
-                <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-title-link">
-                  <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
-                </a>
+              {editingRecipe === recipe.id ? (
+                <form onSubmit={handleUpdateRecipe} className="edit-form">
+                  <input
+                    type="text"
+                    placeholder="Recipe Title"
+                    value={editData.title}
+                    onChange={e => setEditData({ ...editData, title: e.target.value })}
+                    required
+                  />
+                  <textarea
+                    placeholder="Additional notes"
+                    value={editData.text}
+                    onChange={e => setEditData({ ...editData, text: e.target.value })}
+                  />
+                  <div className="edit-buttons">
+                    <button type="submit">Save</button>
+                    <button type="button" onClick={cancelEdit}>Cancel</button>
+                  </div>
+                </form>
               ) : (
-                <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
+                <>
+                  {recipe.url ? (
+                    <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-title-link">
+                      <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
+                    </a>
+                  ) : (
+                    <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
+                  )}
+                  {recipe.url && (
+                    <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
+                      {recipe.url}
+                    </a>
+                  )}
+                  {recipe.text && <p>{recipe.text}</p>}
+                  {recipe.photo && (
+                    <img
+                      src={recipe.photo}
+                      alt={recipe.title}
+                      style={{
+                        maxWidth: '100%',
+                        borderRadius: '8px',
+                        marginTop: '0.5em'
+                      }}
+                    />
+                  )}
+                  <div className="recipe-actions">
+                    <button onClick={() => startEdit(recipe)} className="edit-btn">Edit</button>
+                    <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
+                  </div>
+                </>
               )}
-              {recipe.url && (
-                <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
-                  {recipe.url}
-                </a>
-              )}
-              {recipe.text && <p>{recipe.text}</p>}
-              {recipe.photo && (
-                <img
-                  src={recipe.photo}
-                  alt={recipe.title}
-                  style={{
-                    maxWidth: '100%',
-                    borderRadius: '8px',
-                    marginTop: '0.5em'
-                  }}
-                />
-              )}
-              <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
             </li>
           ))}
         </ul>

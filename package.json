@@ -8,15 +8,23 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
     "worker:dev": "wrangler dev ./worker/index.js",
-    "worker:deploy": "wrangler deploy ./worker/index.js"
+    "worker:deploy": "wrangler deploy ./worker/index.js",
+    "prepare": "husky"
   },
   "dependencies": {
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250831.0",
     "@eslint/js": "^9.33.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
@@ -24,7 +32,11 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "husky": "^9.1.7",
+    "jsdom": "^26.1.0",
+    "miniflare": "^4.20250823.1",
     "vite": "^7.1.2",
+    "vitest": "^3.2.4",
     "wrangler": "^4.33.1"
   }
 }

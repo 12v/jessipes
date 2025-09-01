@@ -7,7 +7,8 @@ export async function fetchRecipes(secret) {
         headers: { Authorization: secret },
     });
     if (!res.ok) throw new Error('Failed to fetch recipes');
-    return await res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
 }
 
 export async function addRecipe(secret, recipe) {
@@ -35,5 +36,18 @@ export async function softDeleteRecipe(secret, id) {
         body: JSON.stringify({ deleted: true }),
     });
     if (!res.ok) throw new Error('Failed to delete recipe');
+    return await res.json();
+}
+
+export async function updateRecipe(secret, id, updates) {
+    const res = await fetch(`${WORKER_URL}/recipes/${id}`, {
+        method: 'PATCH',
+        headers: {
+            Authorization: secret,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update recipe');
     return await res.json();
 }
