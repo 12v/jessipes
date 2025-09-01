@@ -15,6 +15,7 @@ function App() {
   const [addType, setAddType] = useState('url');
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [editData, setEditData] = useState({ title: '', text: '' });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -115,9 +116,28 @@ function App() {
     );
   }
 
+  const filteredRecipes = recipes.filter(recipe => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      recipe.title?.toLowerCase().includes(searchLower) ||
+      recipe.text?.toLowerCase().includes(searchLower) ||
+      recipe.url?.toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
     <div className="container">
       <h1>Jessipes</h1>
+      
+      <input
+        type="text"
+        placeholder="Search recipes..."
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+        className="search-input"
+      />
+      
       {!showAdd && (
         <button onClick={() => setShowAdd(true)} style={{ width: '100%', marginBottom: '1em' }}>
           Add Recipe
@@ -181,7 +201,7 @@ function App() {
       )}
       {loading ? <p>Loading...</p> : (
         <ul className="recipe-list">
-          {recipes.filter(r => !r.deleted).map(recipe => (
+          {filteredRecipes.filter(r => !r.deleted).map(recipe => (
             <li key={recipe.id} className="recipe-item">
               {editingRecipe === recipe.id ? (
                 <form onSubmit={handleUpdateRecipe} className="edit-form">

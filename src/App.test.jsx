@@ -361,4 +361,89 @@ describe('App', () => {
       })
     })
   })
+
+  describe('Search Functionality', () => {
+    beforeEach(() => {
+      localStorage.getItem.mockReturnValue('test-secret')
+      api.fetchRecipes.mockResolvedValue(mockRecipes)
+    })
+
+    test('displays search input', async () => {
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      expect(screen.getByPlaceholderText('Search recipes...')).toBeInTheDocument()
+    })
+
+    test('filters recipes by title', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      const searchInput = screen.getByPlaceholderText('Search recipes...')
+      await user.type(searchInput, 'Recipe 1')
+      
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
+    })
+
+    test('filters recipes by text content', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      const searchInput = screen.getByPlaceholderText('Search recipes...')
+      await user.type(searchInput, 'Some notes')
+      
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
+    })
+
+    test('filters recipes by URL', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      const searchInput = screen.getByPlaceholderText('Search recipes...')
+      await user.type(searchInput, 'example.com/recipe1')
+      
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
+    })
+
+    test('shows all recipes when search is cleared', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      const searchInput = screen.getByPlaceholderText('Search recipes...')
+      await user.type(searchInput, 'Recipe 1')
+      
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
+      
+      await user.clear(searchInput)
+      
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.getByText('Test Recipe 2')).toBeInTheDocument()
+    })
+
+    test('search is case insensitive', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      const searchInput = screen.getByPlaceholderText('Search recipes...')
+      await user.type(searchInput, 'recipe 1')
+      
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
+    })
+  })
 })

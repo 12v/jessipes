@@ -30,3 +30,191 @@ h2 {
   margin: 1em 0;
   color: var(--text);
 }
+
+body {
+  margin: 0;
+  padding: 2em;
+  background-color: #f8fafc;
+  color: #1a202c;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Search Input */
+.search-input {
+  margin-bottom: 1.5em !important;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1em !important;
+  font-size: 1.1em;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+}
+
+.search-input:focus {
+  border-color: #FF6B6B;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+}
+
+/* Form Styles */
+form {
+  background: white;
+  padding: 1.5em;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2em;
+}
+
+input, textarea, select {
+  width: 100%;
+  padding: 0.75em;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1em;
+  margin-bottom: 1em;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #FF6B6B;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+button {
+  background: #FF6B6B;
+  color: white;
+  border: none;
+  padding: 0.75em 1.5em;
+  border-radius: 8px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  margin-right: 0.5em;
+}
+
+button:hover {
+  background: #e55c5c;
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+/* Edit Form Specific Styles */
+.edit-form {
+  background: #fff5f5;
+  border: 2px solid #FF6B6B;
+  margin: 1em 0;
+}
+
+.edit-form input,
+.edit-form textarea {
+  background: white;
+  border-color: #fed7d7;
+}
+
+.edit-form input:focus,
+.edit-form textarea:focus {
+  border-color: #FF6B6B;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15);
+}
+
+.edit-buttons {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 1em;
+}
+
+.edit-buttons button:first-child {
+  background: #48bb78;
+}
+
+.edit-buttons button:first-child:hover {
+  background: #38a169;
+}
+
+.edit-buttons button:last-child {
+  background: #718096;
+}
+
+.edit-buttons button:last-child:hover {
+  background: #4a5568;
+}
+
+/* Recipe List Styles */
+.recipe-list {
+  list-style: none;
+  padding: 0;
+}
+
+.recipe-item {
+  background: white;
+  padding: 1.5em;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1em;
+  border-left: 4px solid #FF6B6B;
+}
+
+.recipe-title {
+  font-size: 1.25em;
+  margin-bottom: 0.5em;
+  color: #1a202c;
+}
+
+.recipe-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.recipe-title-link:hover .recipe-title {
+  color: #FF6B6B;
+}
+
+.recipe-url {
+  display: block;
+  color: #4a5568;
+  font-size: 0.9em;
+  margin: 0.5em 0;
+  text-decoration: none;
+}
+
+.recipe-url:hover {
+  color: #FF6B6B;
+}
+
+.recipe-actions {
+  display: flex;
+  gap: 0.5em;
+  margin-top: 1em;
+}
+
+.edit-btn {
+  background: #4299e1;
+  font-size: 0.9em;
+  padding: 0.5em 1em;
+}
+
+.edit-btn:hover {
+  background: #3182ce;
+}
+
+.delete-btn {
+  background: #e53e3e;
+  font-size: 0.9em;
+  padding: 0.5em 1em;
+}
+
+.delete-btn:hover {
+  background: #c53030;
+}
