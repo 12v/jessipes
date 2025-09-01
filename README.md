@@ -18,14 +18,41 @@ A mobile-first PWA for saving and sharing recipes using Cloudflare KV.
 ## Development
 - Built with Vite + React
 - PWA enabled
+- Comprehensive test suite with 60+ tests
+- Automated quality gates via Husky hooks
 
-## To run locally:
+## Commands
+
+### Development
 ```bash
-npm install
-npm run dev
+npm install        # Install dependencies
+npm run dev        # Start development server
+npm run worker:dev # Start worker development server
 ```
 
-## To build for production:
+### Testing
+```bash
+npm test           # Run tests in watch mode
+npm run test:run   # Run tests once
+npm run test:ui    # Run tests with visual UI
+npm run lint       # Run linting
+```
+
+### Deployment
+```bash
+npm run deploy        # Build after tests pass
+npm run worker:deploy # Deploy worker after tests pass
+```
+
+**⚠️ Deployment Safety**: All deployment commands automatically run tests and linting first. Deployment will abort if any tests fail or linting errors are found.
+
+### Production Build
 ```bash
 npm run build
 ```
+
+## Quality Gates
+- **Pre-commit**: Tests + linting run before every commit
+- **Pre-push**: Build verification before every push  
+- **CI/CD**: GitHub Actions runs full test suite before deployment
+- **Manual deployment**: All deploy scripts run tests first

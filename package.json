@@ -12,7 +12,8 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "worker:dev": "wrangler dev ./worker/index.js",
-    "worker:deploy": "wrangler deploy ./worker/index.js",
+    "worker:deploy": "npm run test:run && npm run lint && wrangler deploy ./worker/index.js",
+    "deploy": "npm run test:run && npm run lint && npm run build",
     "prepare": "husky"
   },
   "dependencies": {
