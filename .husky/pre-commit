@@ -1,0 +1,7 @@
+echo "🧪 Running tests..."
+npm run test:run || (echo "❌ Tests failed. Commit aborted." && exit 1)
+
+echo "🔍 Running linter..."
+npm run lint || (echo "❌ Linting failed. Commit aborted." && exit 1)
+
+echo "✅ All checks passed!"
