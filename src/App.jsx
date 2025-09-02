@@ -48,7 +48,7 @@ function App() {
     };
   }, [secret]);
 
-  function saveSecret() {
+  function handleSaveSecret() {
     localStorage.setItem(LOCAL_SECRET_KEY, inputSecret);
     setSecret(inputSecret);
   }
@@ -76,12 +76,12 @@ function App() {
     }
   }
 
-  function startEdit(recipe) {
+  function handleStartEdit(recipe) {
     setEditingRecipe(recipe.id);
     setEditData({ title: recipe.title || '', text: recipe.text || '' });
   }
 
-  function cancelEdit() {
+  function handleCancelEdit() {
     setEditingRecipe(null);
     setEditData({ title: '', text: '' });
   }
@@ -111,7 +111,7 @@ function App() {
           placeholder="Secret code"
           style={{ width: '100%', padding: '1em', fontSize: '1em', boxSizing: 'border-box' }}
         />
-        <button onClick={saveSecret} style={{ width: '100%', marginTop: '1em' }}>Save</button>
+        <button onClick={handleSaveSecret} style={{ width: '100%', marginTop: '1em' }}>Save</button>
       </div>
     );
   }
@@ -220,7 +220,7 @@ function App() {
                   />
                   <div className="edit-buttons">
                     <button type="submit">Save</button>
-                    <button type="button" onClick={cancelEdit}>Cancel</button>
+                    <button type="button" onClick={handleCancelEdit}>Cancel</button>
                   </div>
                 </form>
               ) : (
@@ -250,7 +250,7 @@ function App() {
                     />
                   )}
                   <div className="recipe-actions">
-                    <button onClick={() => startEdit(recipe)} className="edit-btn">Edit</button>
+                    <button onClick={() => handleStartEdit(recipe)} className="edit-btn">Edit</button>
                     <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
                   </div>
                 </>
