@@ -177,16 +177,16 @@ describe('App', () => {
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
       
       // URL type should have additional notes
-      expect(screen.getByPlaceholderText('Additional notes (optional)')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Additional notes')).toBeInTheDocument()
       
       // Switch to Photo type
       const typeSelect = screen.getByRole('combobox')
       await user.selectOptions(typeSelect, 'photo')
-      expect(screen.getByPlaceholderText('Additional notes (optional)')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Additional notes')).toBeInTheDocument()
       
       // Switch to Text type - should not have additional notes (uses main text field)
       await user.selectOptions(typeSelect, 'text')
-      expect(screen.queryByPlaceholderText('Additional notes (optional)')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Additional notes')).not.toBeInTheDocument()
     })
 
     test('submits URL recipe successfully', async () => {
@@ -201,7 +201,7 @@ describe('App', () => {
       
       await user.type(screen.getByPlaceholderText('Recipe Title'), 'New Recipe')
       await user.type(screen.getByPlaceholderText('Recipe URL'), 'https://test.com')
-      await user.type(screen.getByPlaceholderText('Additional notes (optional)'), 'Notes')
+      await user.type(screen.getByPlaceholderText('Additional notes'), 'Notes')
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
       
       expect(api.addRecipe).toHaveBeenCalledWith('test-secret', {
@@ -231,6 +231,25 @@ describe('App', () => {
       })
       
       alertSpy.mockRestore()
+    })
+
+    test('cancels add form when Cancel button is clicked', async () => {
+      const user = userEvent.setup()
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      // Form should be visible
+      expect(screen.getByPlaceholderText('Recipe Title')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+      
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      
+      // Form should be hidden, Add Recipe button should be back
+      expect(screen.queryByPlaceholderText('Recipe Title')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add Recipe' })).toBeInTheDocument()
     })
   })
 

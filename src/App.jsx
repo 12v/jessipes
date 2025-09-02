@@ -159,7 +159,7 @@ function App() {
                 required
               />
               <textarea
-                placeholder="Additional notes (optional)"
+                placeholder="Additional notes"
                 value={newRecipe.text}
                 onChange={e => setNewRecipe({ ...newRecipe, text: e.target.value })}
               />
@@ -174,7 +174,7 @@ function App() {
                 required
               />
               <textarea
-                placeholder="Additional notes (optional)"
+                placeholder="Additional notes"
                 value={newRecipe.text}
                 onChange={e => setNewRecipe({ ...newRecipe, text: e.target.value })}
               />
@@ -188,7 +188,10 @@ function App() {
               required
             />
           )}
-          <button type="submit">Add Recipe</button>
+          <div className="add-buttons">
+            <button type="submit">Add Recipe</button>
+            <button type="button" onClick={() => setShowAdd(false)}>Cancel</button>
+          </div>
         </form>
       )}
       
@@ -237,7 +240,6 @@ function App() {
                       {recipe.url}
                     </a>
                   )}
-                  {recipe.text && <p>{recipe.text}</p>}
                   {recipe.photo && (
                     <img
                       src={recipe.photo}
@@ -249,6 +251,7 @@ function App() {
                       }}
                     />
                   )}
+                  {recipe.text && <p>{recipe.text}</p>}
                   <div className="recipe-actions">
                     <button onClick={() => handleStartEdit(recipe)} className="edit-btn">Edit</button>
                     <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
