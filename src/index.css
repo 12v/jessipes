@@ -45,18 +45,18 @@ body {
 
 /* Search Input */
 .search-input {
-  margin-bottom: 1.5em !important;
+  margin-bottom: 1.5em;
   background: white;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1em !important;
-  font-size: 1.1em;
-  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.75em;
+  font-size: 1em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .search-input:focus {
-  border-color: #FF6B6B;
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+  border-color: #6b7280;
+  box-shadow: 0 0 0 1px #6b7280;
 }
 
 /* Form Styles */
@@ -71,8 +71,8 @@ form {
 input, textarea, select {
   width: 100%;
   padding: 0.75em;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   font-size: 1em;
   margin-bottom: 1em;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -80,8 +80,8 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: #FF6B6B;
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+  border-color: #6b7280;
+  box-shadow: 0 0 0 1px #6b7280;
 }
 
 textarea {
@@ -112,21 +112,21 @@ button:active {
 
 /* Edit Form Specific Styles */
 .edit-form {
-  background: #fff5f5;
-  border: 2px solid #FF6B6B;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
   margin: 1em 0;
 }
 
 .edit-form input,
 .edit-form textarea {
   background: white;
-  border-color: #fed7d7;
+  border-color: #d1d5db;
 }
 
 .edit-form input:focus,
 .edit-form textarea:focus {
-  border-color: #FF6B6B;
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15);
+  border-color: #6b7280;
+  box-shadow: 0 0 0 1px #6b7280;
 }
 
 .edit-buttons {

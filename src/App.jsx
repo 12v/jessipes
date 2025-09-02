@@ -130,14 +130,6 @@ function App() {
     <div className="container">
       <h1>Jessipes</h1>
       
-      <input
-        type="text"
-        placeholder="Search recipes..."
-        value={searchTerm}
-        onChange={e => setSearchTerm(e.target.value)}
-        className="search-input"
-      />
-      
       {!showAdd && (
         <button onClick={() => setShowAdd(true)} style={{ width: '100%', marginBottom: '1em' }}>
           Add Recipe
@@ -199,6 +191,15 @@ function App() {
           <button type="submit">Add Recipe</button>
         </form>
       )}
+      
+      <input
+        type="text"
+        placeholder="Search recipes..."
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+        className="search-input"
+      />
+      
       {loading ? <p>Loading...</p> : (
         <ul className="recipe-list">
           {filteredRecipes.filter(r => !r.deleted).map(recipe => (
