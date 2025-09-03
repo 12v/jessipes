@@ -19,19 +19,6 @@ function App() {
   const [zoomedImage, setZoomedImage] = useState(null);
   const [scrollPosition, setScrollPosition] = useState(0);
 
-  function enableZoom() {
-    const viewport = document.querySelector('meta[name=viewport]');
-    if (viewport) {
-      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=yes');
-    }
-  }
-
-  function disableZoom() {
-    const viewport = document.querySelector('meta[name=viewport]');
-    if (viewport) {
-      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
-    }
-  }
 
   useEffect(() => {
     let mounted = true;
@@ -64,13 +51,6 @@ function App() {
     };
   }, [secret]);
 
-  useEffect(() => {
-    return () => {
-      if (zoomedImage) {
-        disableZoom();
-      }
-    };
-  }, [zoomedImage]);
 
   function handleSaveSecret() {
     localStorage.setItem(LOCAL_SECRET_KEY, inputSecret);
@@ -271,7 +251,6 @@ function App() {
                       className="recipe-image"
                       onClick={() => {
                         setScrollPosition(window.scrollY);
-                        enableZoom();
                         setZoomedImage({
                           src: recipe.photo,
                           alt: recipe.title
@@ -292,10 +271,12 @@ function App() {
       )}
       
       {zoomedImage && (
-        <div className="image-zoom-overlay" onClick={() => {
-          setZoomedImage(null);
-          disableZoom();
-          setTimeout(() => window.scrollTo(0, scrollPosition), 0);
+        <div className="image-zoom-overlay" onClick={(e) => {
+          // Only close if clicking the overlay background, not the image
+          if (e.target === e.currentTarget) {
+            setZoomedImage(null);
+            setTimeout(() => window.scrollTo(0, scrollPosition), 0);
+          }
         }}>
           <div className="image-zoom-container">
             <button 
@@ -303,7 +284,6 @@ function App() {
               onClick={(e) => {
                 e.stopPropagation();
                 setZoomedImage(null);
-                disableZoom();
                 setTimeout(() => window.scrollTo(0, scrollPosition), 0);
               }}
             >

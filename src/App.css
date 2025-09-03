@@ -40,7 +40,7 @@ textarea,
 select {
   width: 100%;
   padding: 0.75em 1em;
-  font-size: 1em;
+  font-size: 16px;
   font-family: inherit;
   border-radius: 8px;
   border: 2px solid #eee;
@@ -58,7 +58,7 @@ select:focus {
 .secret-input {
   width: 100%;
   padding: 1em;
-  font-size: 1em;
+  font-size: 16px;
   box-sizing: border-box;
 }
 
@@ -175,7 +175,6 @@ button:hover {
   text-decoration: none;
   margin-bottom: 0.25em;
   cursor: pointer;
-  -webkit-tap-highlight-color: rgba(255, 107, 107, 0.2);
 }
 
 .recipe-title-link:hover strong,
@@ -206,19 +205,6 @@ button:hover {
   border-radius: 8px;
   margin-top: 0.5em;
   cursor: pointer;
-  -webkit-tap-highlight-color: rgba(255, 107, 107, 0.2);
-  transition: transform 0.2s ease;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-}
-
-.recipe-image:hover {
-  transform: scale(1.02);
-}
-
-.recipe-image:active {
-  transform: scale(0.98);
 }
 
 /* ========== Image Zoom Modal ========== */
@@ -234,8 +220,6 @@ button:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
 
 .image-zoom-container {
@@ -275,11 +259,6 @@ button:hover {
   max-height: 95vh;
   object-fit: contain;
   border-radius: 8px;
-  cursor: default;
-  touch-action: pinch-zoom;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 /* ========== Mobile Styles ========== */
@@ -302,13 +281,5 @@ button:hover {
     margin: 10px;
     max-width: calc(100vw - 20px);
     max-height: calc(100vh - 20px);
-  }
-  
-  .recipe-image {
-    -webkit-tap-highlight-color: rgba(255, 107, 107, 0.3);
-  }
-  
-  .recipe-image:active {
-    transform: scale(0.95);
   }
 }
