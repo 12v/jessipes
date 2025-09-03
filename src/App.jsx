@@ -16,6 +16,8 @@ function App() {
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [editData, setEditData] = useState({ title: '', text: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [zoomedImage, setZoomedImage] = useState(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -109,9 +111,9 @@ function App() {
           value={inputSecret}
           onChange={e => setInputSecret(e.target.value)}
           placeholder="Secret code"
-          style={{ width: '100%', padding: '1em', fontSize: '1em', boxSizing: 'border-box' }}
+          className="secret-input"
         />
-        <button onClick={handleSaveSecret} style={{ width: '100%', marginTop: '1em' }}>Save</button>
+        <button onClick={handleSaveSecret} className="secret-save-button">Save</button>
       </div>
     );
   }
@@ -131,7 +133,7 @@ function App() {
       <h1>Jessipes</h1>
       
       {!showAdd && (
-        <button onClick={() => setShowAdd(true)} style={{ width: '100%', marginBottom: '1em' }}>
+        <button onClick={() => setShowAdd(true)} className="add-recipe-button">
           Add Recipe
         </button>
       )}
@@ -244,14 +246,17 @@ function App() {
                     <img
                       src={recipe.photo}
                       alt={recipe.title}
-                      style={{
-                        maxWidth: '100%',
-                        borderRadius: '8px',
-                        marginTop: '0.5em'
+                      className="recipe-image"
+                      onClick={() => {
+                        setScrollPosition(window.scrollY);
+                        setZoomedImage({
+                          src: recipe.photo,
+                          alt: recipe.title
+                        });
                       }}
                     />
                   )}
-                  {recipe.text && <p>{recipe.text}</p>}
+                  {recipe.text && <p className="recipe-text">{recipe.text}</p>}
                   <div className="recipe-actions">
                     <button onClick={() => handleStartEdit(recipe)} className="edit-btn">Edit</button>
                     <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
@@ -261,6 +266,32 @@ function App() {
             </li>
           ))}
         </ul>
+      )}
+      
+      {zoomedImage && (
+        <div className="image-zoom-overlay" onClick={() => {
+          setZoomedImage(null);
+          setTimeout(() => window.scrollTo(0, scrollPosition), 0);
+        }}>
+          <div className="image-zoom-container">
+            <button 
+              className="back-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoomedImage(null);
+                setTimeout(() => window.scrollTo(0, scrollPosition), 0);
+              }}
+            >
+              ← Back
+            </button>
+            <img
+              src={zoomedImage.src}
+              alt={zoomedImage.alt}
+              className="zoomed-image"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

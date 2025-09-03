@@ -366,7 +366,7 @@ describe('App', () => {
       
       const image = screen.getByRole('img', { name: 'Test Recipe 2' })
       expect(image).toHaveAttribute('src', 'https://example.com/photo.jpg')
-      expect(image).toHaveStyle({ maxWidth: '100%', borderRadius: '8px' })
+      expect(image).toHaveClass('recipe-image')
     })
 
     test('displays recipe text content', async () => {
@@ -378,6 +378,121 @@ describe('App', () => {
         expect(screen.getByText('Some notes')).toBeInTheDocument()
         expect(screen.getByText('Photo recipe notes')).toBeInTheDocument()
       })
+    })
+
+    test('preserves newlines in recipe text display', async () => {
+      const recipeWithNewlines = {
+        id: '3',
+        title: 'Multi-line Recipe',
+        text: 'Line 1\nLine 2\nLine 3'
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithNewlines])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Multi-line Recipe'))
+      
+      const textElement = screen.getByText((content, element) => {
+        return element.textContent === 'Line 1\nLine 2\nLine 3'
+      })
+      expect(textElement).toHaveClass('recipe-text')
+    })
+
+    test('clicking recipe image opens zoom overlay', async () => {
+      const user = userEvent.setup()
+      api.fetchRecipes.mockResolvedValue([mockRecipes[1]]) // Photo recipe
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 2'))
+      
+      const images = screen.getAllByRole('img', { name: 'Test Recipe 2' })
+      const thumbnailImage = images.find(img => !img.classList.contains('zoomed-image'))
+      expect(thumbnailImage).toHaveClass('recipe-image')
+      
+      await user.click(thumbnailImage)
+      
+      expect(screen.getByText('← Back')).toBeInTheDocument()
+      const zoomedImages = screen.getAllByRole('img', { name: 'Test Recipe 2' })
+      const zoomedImage = zoomedImages.find(img => img.classList.contains('zoomed-image'))
+      expect(zoomedImage).toBeInTheDocument()
+    })
+
+    test('clicking back button closes zoom overlay and restores scroll', async () => {
+      const user = userEvent.setup()
+      api.fetchRecipes.mockResolvedValue([mockRecipes[1]])
+      
+      // Mock window.scrollY and scrollTo
+      Object.defineProperty(window, 'scrollY', { value: 100, writable: true })
+      const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 2'))
+      
+      const image = screen.getByRole('img', { name: 'Test Recipe 2' })
+      await user.click(image)
+      
+      expect(screen.getByText('← Back')).toBeInTheDocument()
+      
+      const backButton = screen.getByText('← Back')
+      await user.click(backButton)
+      
+      // Use setTimeout to match the component's behavior
+      await new Promise(resolve => setTimeout(resolve, 10))
+      
+      expect(screen.queryByText('← Back')).not.toBeInTheDocument()
+      expect(scrollToSpy).toHaveBeenCalledWith(0, 100)
+      
+      scrollToSpy.mockRestore()
+    })
+
+    test('clicking overlay background closes zoom overlay and restores scroll', async () => {
+      const user = userEvent.setup()
+      api.fetchRecipes.mockResolvedValue([mockRecipes[1]])
+      
+      Object.defineProperty(window, 'scrollY', { value: 200, writable: true })
+      const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 2'))
+      
+      const image = screen.getByRole('img', { name: 'Test Recipe 2' })
+      await user.click(image)
+      
+      const overlay = document.querySelector('.image-zoom-overlay')
+      expect(overlay).toBeInTheDocument()
+      
+      await user.click(overlay)
+      
+      await new Promise(resolve => setTimeout(resolve, 10))
+      
+      expect(screen.queryByText('← Back')).not.toBeInTheDocument()
+      expect(scrollToSpy).toHaveBeenCalledWith(0, 200)
+      
+      scrollToSpy.mockRestore()
+    })
+
+    test('clicking zoomed image does not close overlay', async () => {
+      const user = userEvent.setup()
+      api.fetchRecipes.mockResolvedValue([mockRecipes[1]])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 2'))
+      
+      const images = screen.getAllByRole('img', { name: 'Test Recipe 2' })
+      const thumbnailImage = images.find(img => !img.classList.contains('zoomed-image'))
+      await user.click(thumbnailImage)
+      
+      expect(screen.getByText('← Back')).toBeInTheDocument()
+      
+      const zoomedImages = screen.getAllByRole('img', { name: 'Test Recipe 2' })
+      const zoomedImage = zoomedImages.find(img => img.classList.contains('zoomed-image'))
+      await user.click(zoomedImage)
+      
+      expect(screen.getByText('← Back')).toBeInTheDocument()
     })
   })
 
