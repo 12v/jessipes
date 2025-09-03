@@ -276,7 +276,7 @@ button:hover {
   object-fit: contain;
   border-radius: 8px;
   cursor: default;
-  touch-action: manipulation;
+  touch-action: pinch-zoom;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-user-select: none;
