@@ -23,7 +23,7 @@ function isValidUrl(url) {
         const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
         const ipMatch = hostname.match(ipv4Regex);
         if (ipMatch) {
-            const [, a, b, c, d] = ipMatch.map(Number);
+            const [, a, b] = ipMatch.map(Number);
             // 10.0.0.0/8
             if (a === 10) return false;
             // 172.16.0.0/12

@@ -703,7 +703,7 @@ describe('App', () => {
       expect(previewImages).toHaveLength(0)
     })
 
-    test('displays both preview image and photo for URL recipes with photos', async () => {
+    test('prioritizes preview image over photo for URL recipes with both', async () => {
       const recipeWithBoth = {
         id: '1',
         title: 'Recipe with Both',
@@ -718,14 +718,33 @@ describe('App', () => {
       
       await waitFor(() => screen.getByText('Recipe with Both'))
       
-      const images = screen.getAllByRole('img', { name: 'Recipe with Both' })
-      expect(images).toHaveLength(2)
+      const images = screen.getAllByRole('img', { name: 'Recipe image' })
+      // Should only show one image (preview image takes priority)
+      expect(images).toHaveLength(1)
       
-      const previewImage = images.find(img => img.classList.contains('recipe-preview-image'))
-      const recipeImage = images.find(img => img.classList.contains('recipe-image'))
+      expect(images[0]).toHaveAttribute('src', 'https://example.com/preview.jpg')
+      expect(images[0]).toHaveClass('recipe-preview-image')
+    })
+
+    test('falls back to photo when no preview image available', async () => {
+      const recipeWithPhoto = {
+        id: '1',
+        title: 'Recipe with Photo Only',
+        url: 'https://example.com/recipe',
+        photo: 'https://example.com/photo.jpg',
+        created: '2024-01-01T00:00:00Z',
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithPhoto])
       
-      expect(previewImage).toHaveAttribute('src', 'https://example.com/preview.jpg')
-      expect(recipeImage).toHaveAttribute('src', 'https://example.com/photo.jpg')
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Recipe with Photo Only'))
+      
+      const images = screen.getAllByRole('img', { name: 'Recipe image' })
+      expect(images).toHaveLength(1)
+      
+      expect(images[0]).toHaveAttribute('src', 'https://example.com/photo.jpg')
+      expect(images[0]).toHaveClass('recipe-image')
     })
   })
 })
