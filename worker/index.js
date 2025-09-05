@@ -1,76 +1,178 @@
 // Cloudflare Worker for Jessipes API
 // Handles recipe storage and retrieval using Cloudflare KV
 
+// URL validation to prevent SSRF attacks
+function isValidUrl(url) {
+    try {
+        const urlObj = new URL(url);
+        
+        // Only allow HTTP/HTTPS protocols
+        if (!['http:', 'https:'].includes(urlObj.protocol)) {
+            return false;
+        }
+        
+        // Block private/internal IP ranges
+        const hostname = urlObj.hostname;
+        
+        // Block localhost and loopback addresses
+        if (['localhost', '127.0.0.1', '::1'].includes(hostname)) {
+            return false;
+        }
+        
+        // Block private IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
+        const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+        const ipMatch = hostname.match(ipv4Regex);
+        if (ipMatch) {
+            const [, a, b, c, d] = ipMatch.map(Number);
+            // 10.0.0.0/8
+            if (a === 10) return false;
+            // 172.16.0.0/12
+            if (a === 172 && b >= 16 && b <= 31) return false;
+            // 192.168.0.0/16
+            if (a === 192 && b === 168) return false;
+            // 169.254.0.0/16 (link-local)
+            if (a === 169 && b === 254) return false;
+        }
+        
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Helper function to resolve relative URLs to absolute URLs
+function resolveUrl(imageUrl, baseUrl) {
+    if (imageUrl.startsWith('//')) {
+        return `https:${imageUrl}`;
+    } else if (imageUrl.startsWith('/')) {
+        const urlObj = new URL(baseUrl);
+        return `${urlObj.protocol}//${urlObj.host}${imageUrl}`;
+    } else if (!imageUrl.startsWith('http')) {
+        const urlObj = new URL(baseUrl);
+        return `${urlObj.protocol}//${urlObj.host}/${imageUrl}`;
+    }
+    return imageUrl;
+}
+
+// Extract meta content using proper parsing instead of regex
+function extractMetaContent(html, property, name = null) {
+    const patterns = [
+        new RegExp(`<meta\\s+property=["']${property}["']\\s+content=["']([^"']*)["']`, 'i'),
+        new RegExp(`<meta\\s+content=["']([^"']*)["']\\s+property=["']${property}["']`, 'i')
+    ];
+    
+    if (name) {
+        patterns.push(
+            new RegExp(`<meta\\s+name=["']${name}["']\\s+content=["']([^"']*)["']`, 'i'),
+            new RegExp(`<meta\\s+content=["']([^"']*)["']\\s+name=["']${name}["']`, 'i')
+        );
+    }
+    
+    for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match && match[1]) {
+            // Basic HTML entity decoding
+            return match[1]
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#x27;/g, "'")
+                .replace(/&#x2F;/g, '/');
+        }
+    }
+    return null;
+}
+
 // Extract OpenGraph/meta preview image from a URL
 async function extractPreviewImage(url) {
     try {
-        // Fetch the HTML page
+        // Validate URL to prevent SSRF
+        if (!isValidUrl(url)) {
+            console.warn('Invalid or potentially dangerous URL:', url);
+            return null;
+        }
+        
+        // Fetch the HTML page with timeout and size limits
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; Jessipes/1.0; +https://jessipes.com)'
-            }
+                'User-Agent': 'Mozilla/5.0 (compatible; Jessipes/1.0; +https://github.com/12v/jessipes)'
+            },
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             return null;
         }
         
-        const html = await response.text();
+        // Check content type to ensure it's HTML
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('text/html')) {
+            return null;
+        }
+        
+        // Limit response size to prevent memory issues
+        const MAX_HTML_SIZE = 1024 * 1024; // 1MB
+        const reader = response.body.getReader();
+        const chunks = [];
+        let totalSize = 0;
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            totalSize += value.length;
+            if (totalSize > MAX_HTML_SIZE) {
+                reader.cancel();
+                throw new Error('Response too large');
+            }
+            
+            chunks.push(value);
+        }
+        
+        const html = new TextDecoder().decode(new Uint8Array(
+            chunks.reduce((acc, chunk) => [...acc, ...chunk], [])
+        ));
         
         // Extract OpenGraph image
-        const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
-        if (ogImageMatch) {
-            const imageUrl = ogImageMatch[1];
-            // Make relative URLs absolute
-            if (imageUrl.startsWith('//')) {
-                return `https:${imageUrl}`;
-            } else if (imageUrl.startsWith('/')) {
-                const urlObj = new URL(url);
-                return `${urlObj.protocol}//${urlObj.host}${imageUrl}`;
-            } else if (!imageUrl.startsWith('http')) {
-                const urlObj = new URL(url);
-                return `${urlObj.protocol}//${urlObj.host}/${imageUrl}`;
+        let imageUrl = extractMetaContent(html, 'og:image');
+        if (imageUrl) {
+            const resolvedUrl = resolveUrl(imageUrl, url);
+            if (isValidUrl(resolvedUrl)) {
+                return resolvedUrl;
             }
-            return imageUrl;
         }
         
         // Fallback to Twitter card image
-        const twitterImageMatch = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
-        if (twitterImageMatch) {
-            const imageUrl = twitterImageMatch[1];
-            // Make relative URLs absolute
-            if (imageUrl.startsWith('//')) {
-                return `https:${imageUrl}`;
-            } else if (imageUrl.startsWith('/')) {
-                const urlObj = new URL(url);
-                return `${urlObj.protocol}//${urlObj.host}${imageUrl}`;
-            } else if (!imageUrl.startsWith('http')) {
-                const urlObj = new URL(url);
-                return `${urlObj.protocol}//${urlObj.host}/${imageUrl}`;
+        imageUrl = extractMetaContent(html, 'twitter:image', 'twitter:image');
+        if (imageUrl) {
+            const resolvedUrl = resolveUrl(imageUrl, url);
+            if (isValidUrl(resolvedUrl)) {
+                return resolvedUrl;
             }
-            return imageUrl;
         }
         
         // Fallback to any image meta tag
-        const imageMatch = html.match(/<meta\s+(?:name|property)=["'](?:image|thumbnail)["']\s+content=["']([^"']+)["']/i);
-        if (imageMatch) {
-            const imageUrl = imageMatch[1];
-            // Make relative URLs absolute
-            if (imageUrl.startsWith('//')) {
-                return `https:${imageUrl}`;
-            } else if (imageUrl.startsWith('/')) {
-                const urlObj = new URL(url);
-                return `${urlObj.protocol}//${urlObj.host}${imageUrl}`;
-            } else if (!imageUrl.startsWith('http')) {
-                const urlObj = new URL(url);
-                return `${urlObj.protocol}//${urlObj.host}/${imageUrl}`;
+        imageUrl = extractMetaContent(html, 'image') || extractMetaContent(html, 'thumbnail', 'thumbnail');
+        if (imageUrl) {
+            const resolvedUrl = resolveUrl(imageUrl, url);
+            if (isValidUrl(resolvedUrl)) {
+                return resolvedUrl;
             }
-            return imageUrl;
         }
         
         return null;
     } catch (error) {
-        console.warn('Error extracting preview image:', error);
+        if (error.name === 'AbortError') {
+            console.warn('Request timed out for URL:', url);
+        } else {
+            console.warn('Error extracting preview image:', error.message);
+        }
         return null;
     }
 }

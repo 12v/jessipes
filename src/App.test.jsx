@@ -580,4 +580,152 @@ describe('App', () => {
       expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
     })
   })
+
+  describe('Preview Image Display', () => {
+    beforeEach(() => {
+      localStorage.getItem.mockReturnValue('test-secret')
+    })
+
+    test('displays preview image for URL recipes', async () => {
+      const recipeWithPreview = {
+        id: '1',
+        title: 'Recipe with Preview',
+        url: 'https://example.com/recipe',
+        previewImage: 'https://example.com/preview.jpg',
+        text: 'Recipe notes',
+        created: '2024-01-01T00:00:00Z',
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithPreview])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Recipe with Preview'))
+      
+      const previewImage = screen.getByRole('img', { name: 'Recipe with Preview' })
+      expect(previewImage).toHaveAttribute('src', 'https://example.com/preview.jpg')
+      expect(previewImage).toHaveClass('recipe-preview-image')
+    })
+
+    test('preview image is positioned between title and URL', async () => {
+      const recipeWithPreview = {
+        id: '1',
+        title: 'Recipe with Preview',
+        url: 'https://example.com/recipe',
+        previewImage: 'https://example.com/preview.jpg',
+        created: '2024-01-01T00:00:00Z',
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithPreview])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Recipe with Preview'))
+      
+      const recipeItem = screen.getByText('Recipe with Preview').closest('.recipe-item')
+      const children = Array.from(recipeItem.children)
+      
+      // Find indices of title, preview image, and URL
+      const titleIndex = children.findIndex(child => child.textContent.includes('Recipe with Preview'))
+      const imageIndex = children.findIndex(child => child.tagName === 'IMG' && child.classList.contains('recipe-preview-image'))
+      const urlIndex = children.findIndex(child => child.textContent.includes('https://example.com/recipe'))
+      
+      expect(titleIndex).toBeLessThan(imageIndex)
+      expect(imageIndex).toBeLessThan(urlIndex)
+    })
+
+    test('preview image opens zoom overlay when clicked', async () => {
+      const user = userEvent.setup()
+      const recipeWithPreview = {
+        id: '1',
+        title: 'Recipe with Preview',
+        url: 'https://example.com/recipe',
+        previewImage: 'https://example.com/preview.jpg',
+        created: '2024-01-01T00:00:00Z',
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithPreview])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Recipe with Preview'))
+      
+      const previewImage = screen.getByRole('img', { name: 'Recipe with Preview' })
+      await user.click(previewImage)
+      
+      expect(screen.getByText('← Back')).toBeInTheDocument()
+      const zoomedImages = screen.getAllByRole('img', { name: 'Recipe with Preview' })
+      const zoomedImage = zoomedImages.find(img => img.classList.contains('zoomed-image'))
+      expect(zoomedImage).toBeInTheDocument()
+      expect(zoomedImage).toHaveAttribute('src', 'https://example.com/preview.jpg')
+    })
+
+    test('hides preview image on error', async () => {
+      const recipeWithPreview = {
+        id: '1',
+        title: 'Recipe with Broken Preview',
+        url: 'https://example.com/recipe',
+        previewImage: 'https://example.com/broken.jpg',
+        created: '2024-01-01T00:00:00Z',
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithPreview])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Recipe with Broken Preview'))
+      
+      const previewImage = screen.getByRole('img', { name: 'Recipe with Broken Preview' })
+      
+      // Simulate image load error
+      const errorEvent = new Event('error')
+      Object.defineProperty(previewImage, 'style', {
+        value: { display: '' },
+        writable: true
+      })
+      previewImage.dispatchEvent(errorEvent)
+      
+      expect(previewImage.style.display).toBe('none')
+    })
+
+    test('does not display preview image when not present', async () => {
+      const recipeWithoutPreview = {
+        id: '1',
+        title: 'Recipe without Preview',
+        url: 'https://example.com/recipe',
+        text: 'Recipe notes',
+        created: '2024-01-01T00:00:00Z',
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithoutPreview])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Recipe without Preview'))
+      
+      const images = screen.queryAllByRole('img')
+      const previewImages = images.filter(img => img.classList.contains('recipe-preview-image'))
+      expect(previewImages).toHaveLength(0)
+    })
+
+    test('displays both preview image and photo for URL recipes with photos', async () => {
+      const recipeWithBoth = {
+        id: '1',
+        title: 'Recipe with Both',
+        url: 'https://example.com/recipe',
+        previewImage: 'https://example.com/preview.jpg',
+        photo: 'https://example.com/photo.jpg',
+        created: '2024-01-01T00:00:00Z',
+      }
+      api.fetchRecipes.mockResolvedValue([recipeWithBoth])
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Recipe with Both'))
+      
+      const images = screen.getAllByRole('img', { name: 'Recipe with Both' })
+      expect(images).toHaveLength(2)
+      
+      const previewImage = images.find(img => img.classList.contains('recipe-preview-image'))
+      const recipeImage = images.find(img => img.classList.contains('recipe-image'))
+      
+      expect(previewImage).toHaveAttribute('src', 'https://example.com/preview.jpg')
+      expect(recipeImage).toHaveAttribute('src', 'https://example.com/photo.jpg')
+    })
+  })
 })

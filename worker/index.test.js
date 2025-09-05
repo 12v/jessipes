@@ -324,6 +324,74 @@ describe('Cloudflare Worker', () => {
       expect(data.created).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
       expect(new Date(data.created)).toBeInstanceOf(Date)
     })
+
+    test('extracts preview image from URL recipe', async () => {
+      // Mock fetch to return HTML with OpenGraph image
+      const mockHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta property="og:image" content="https://example.com/preview.jpg" />
+        </head>
+        <body></body>
+        </html>
+      `
+      
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          headers: { get: () => 'text/html' },
+          body: {
+            getReader: () => ({
+              read: vi.fn()
+                .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+                .mockResolvedValueOnce({ done: true })
+            })
+          }
+        })
+        .mockResolvedValueOnce({ // Second call for the actual recipe creation
+          ok: true,
+          json: async () => ({}),
+        })
+      
+      const formData = createFormData({
+        title: 'Recipe with Preview',
+        url: 'https://example.com/recipe',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBe('https://example.com/preview.jpg')
+    })
+
+    test('handles preview image extraction failure gracefully', async () => {
+      // Mock fetch to fail for preview extraction
+      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'))
+      
+      const formData = createFormData({
+        title: 'Recipe with Failed Preview',
+        url: 'https://example.com/recipe',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(response.status).toBe(200)
+      expect(data.previewImage).toBeUndefined()
+    })
   })
 
   describe('PATCH /recipes/:id', () => {
@@ -443,6 +511,321 @@ describe('Cloudflare Worker', () => {
         url: 'https://example.com',
         created: '2024-01-01T00:00:00Z',
       })
+    })
+  })
+
+  describe('Preview Image Extraction', () => {
+    beforeEach(() => {
+      // Reset global fetch mock
+      global.fetch = vi.fn()
+    })
+
+    test('extracts OpenGraph image correctly', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <meta property="og:image" content="https://example.com/og-image.jpg" />
+        </head>
+        </html>
+      `
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+      
+      const formData = createFormData({
+        title: 'OpenGraph Test',
+        url: 'https://example.com/page',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBe('https://example.com/og-image.jpg')
+    })
+
+    test('falls back to Twitter card image', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <meta name="twitter:image" content="https://example.com/twitter-image.jpg" />
+        </head>
+        </html>
+      `
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+      
+      const formData = createFormData({
+        title: 'Twitter Card Test',
+        url: 'https://example.com/page',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBe('https://example.com/twitter-image.jpg')
+    })
+
+    test('resolves relative URLs correctly', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <meta property="og:image" content="/images/preview.jpg" />
+        </head>
+        </html>
+      `
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+      
+      const formData = createFormData({
+        title: 'Relative URL Test',
+        url: 'https://example.com/recipe-page',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBe('https://example.com/images/preview.jpg')
+    })
+
+    test('resolves protocol-relative URLs correctly', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <meta property="og:image" content="//cdn.example.com/image.jpg" />
+        </head>
+        </html>
+      `
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+      
+      const formData = createFormData({
+        title: 'Protocol Relative Test',
+        url: 'https://example.com/page',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBe('https://cdn.example.com/image.jpg')
+    })
+
+    test('blocks private IP addresses (SSRF protection)', async () => {
+      const formData = createFormData({
+        title: 'SSRF Test',
+        url: 'http://192.168.1.1/recipe',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBeUndefined()
+      expect(global.fetch).not.toHaveBeenCalled()
+    })
+
+    test('blocks localhost addresses (SSRF protection)', async () => {
+      const formData = createFormData({
+        title: 'Localhost Test',
+        url: 'http://localhost:8080/recipe',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBeUndefined()
+      expect(global.fetch).not.toHaveBeenCalled()
+    })
+
+    test('blocks non-HTTP protocols (SSRF protection)', async () => {
+      const formData = createFormData({
+        title: 'File Protocol Test',
+        url: 'file:///etc/passwd',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBeUndefined()
+      expect(global.fetch).not.toHaveBeenCalled()
+    })
+
+    test('handles non-HTML content type', async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'application/json' },
+      })
+      
+      const formData = createFormData({
+        title: 'JSON Content Test',
+        url: 'https://example.com/api/data',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBeUndefined()
+    })
+
+    test('handles HTML entity decoding in image URLs', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <meta property="og:image" content="https://example.com/image?param=value&amp;other=test" />
+        </head>
+        </html>
+      `
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+      
+      const formData = createFormData({
+        title: 'Entity Decoding Test',
+        url: 'https://example.com/page',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBe('https://example.com/image?param=value&other=test')
+    })
+
+    test('returns null when no preview image found', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <title>No Image Here</title>
+        </head>
+        </html>
+      `
+      
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+      
+      const formData = createFormData({
+        title: 'No Image Test',
+        url: 'https://example.com/page',
+      })
+      
+      const request = createRequest('https://example.com/recipes', {
+        method: 'POST',
+        headers: { Authorization: 'test-secret' },
+        body: formData,
+      })
+      
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+      
+      expect(data.previewImage).toBeUndefined()
     })
   })
 
