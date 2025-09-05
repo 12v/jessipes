@@ -718,7 +718,7 @@ describe('App', () => {
       
       await waitFor(() => screen.getByText('Recipe with Both'))
       
-      const images = screen.getAllByRole('img', { name: 'Recipe image' })
+      const images = screen.getAllByRole('img', { name: 'Recipe with Both' })
       // Should only show one image (preview image takes priority)
       expect(images).toHaveLength(1)
       
@@ -740,7 +740,7 @@ describe('App', () => {
       
       await waitFor(() => screen.getByText('Recipe with Photo Only'))
       
-      const images = screen.getAllByRole('img', { name: 'Recipe image' })
+      const images = screen.getAllByRole('img', { name: 'Recipe with Photo Only' })
       expect(images).toHaveLength(1)
       
       expect(images[0]).toHaveAttribute('src', 'https://example.com/photo.jpg')
