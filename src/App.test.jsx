@@ -261,7 +261,6 @@ describe('App', () => {
 
     test('deletes recipe when Delete button is clicked and confirmed', async () => {
       const user = userEvent.setup()
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
       api.softDeleteRecipe.mockResolvedValue({ ...mockRecipes[0], deleted: true })
       
       render(<App />)
@@ -271,15 +270,19 @@ describe('App', () => {
       const deleteButtons = screen.getAllByText('Delete')
       await user.click(deleteButtons[0])
       
-      expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete this recipe?')
-      expect(api.softDeleteRecipe).toHaveBeenCalledWith('test-secret', '1')
+      // Modal should appear
+      expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
+      expect(screen.getByText('Are you sure you want to delete this recipe?')).toBeInTheDocument()
       
-      confirmSpy.mockRestore()
+      // Click confirm delete in modal
+      const confirmButton = document.querySelector('.delete-confirm-btn')
+      await user.click(confirmButton)
+      
+      expect(api.softDeleteRecipe).toHaveBeenCalledWith('test-secret', '1')
     })
 
     test('does not delete recipe when deletion is cancelled', async () => {
       const user = userEvent.setup()
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
       
       render(<App />)
       
@@ -288,10 +291,17 @@ describe('App', () => {
       const deleteButtons = screen.getAllByText('Delete')
       await user.click(deleteButtons[0])
       
-      expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete this recipe?')
+      // Modal should appear
+      expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
+      
+      // Click cancel
+      const cancelButton = screen.getByText('Cancel')
+      await user.click(cancelButton)
+      
       expect(api.softDeleteRecipe).not.toHaveBeenCalled()
       
-      confirmSpy.mockRestore()
+      // Modal should be gone
+      expect(screen.queryByText('Confirm Delete')).not.toBeInTheDocument()
     })
 
     test('enters edit mode when Edit button is clicked', async () => {

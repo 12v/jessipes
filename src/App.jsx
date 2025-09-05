@@ -18,6 +18,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [zoomedImage, setZoomedImage] = useState(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(null);
 
 
   useEffect(() => {
@@ -70,18 +71,24 @@ function App() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm('Are you sure you want to delete this recipe?')) {
-      return;
-    }
-    
+  function handleDelete(id) {
+    setShowConfirmDelete(id);
+  }
+
+  async function confirmDelete() {
     try {
-      const updatedRecipe = await softDeleteRecipe(secret, id);
-      setRecipes(prev => prev.map(r => r.id === id ? updatedRecipe : r));
+      const updatedRecipe = await softDeleteRecipe(secret, showConfirmDelete);
+      setRecipes(prev => prev.map(r => r.id === showConfirmDelete ? updatedRecipe : r));
     } catch (error) {
       console.error('Failed to delete recipe:', error);
       alert('Failed to delete recipe. Please try again.');
+    } finally {
+      setShowConfirmDelete(null);
     }
+  }
+
+  function cancelDelete() {
+    setShowConfirmDelete(null);
   }
 
   function handleStartEdit(recipe) {
@@ -302,6 +309,19 @@ function App() {
               className="zoomed-image"
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+      
+      {showConfirmDelete && (
+        <div className="modal-overlay" onClick={cancelDelete}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete this recipe?</p>
+            <div className="modal-buttons">
+              <button onClick={confirmDelete} className="delete-confirm-btn">Delete</button>
+              <button onClick={cancelDelete} className="cancel-btn">Cancel</button>
+            </div>
           </div>
         </div>
       )}
