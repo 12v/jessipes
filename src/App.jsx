@@ -239,24 +239,27 @@ function App() {
                   ) : (
                     <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
                   )}
+                  {(recipe.previewImage || recipe.photo) && (
+                    <img
+                      src={recipe.previewImage || recipe.photo}
+                      alt={recipe.title || 'Recipe image'}
+                      className={recipe.previewImage ? "recipe-preview-image" : "recipe-image"}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                      onClick={() => {
+                        setScrollPosition(window.scrollY);
+                        setZoomedImage({
+                          src: recipe.previewImage || recipe.photo,
+                          alt: recipe.title || 'Recipe image'
+                        });
+                      }}
+                    />
+                  )}
                   {recipe.url && (
                     <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
                       {recipe.url}
                     </a>
-                  )}
-                  {recipe.photo && (
-                    <img
-                      src={recipe.photo}
-                      alt={recipe.title}
-                      className="recipe-image"
-                      onClick={() => {
-                        setScrollPosition(window.scrollY);
-                        setZoomedImage({
-                          src: recipe.photo,
-                          alt: recipe.title
-                        });
-                      }}
-                    />
                   )}
                   {recipe.text && <p className="recipe-text">{recipe.text}</p>}
                   <div className="recipe-actions">
