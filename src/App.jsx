@@ -71,6 +71,10 @@ function App() {
   }
 
   async function handleDelete(id) {
+    if (!window.confirm('Are you sure you want to delete this recipe?')) {
+      return;
+    }
+    
     try {
       const updatedRecipe = await softDeleteRecipe(secret, id);
       setRecipes(prev => prev.map(r => r.id === id ? updatedRecipe : r));

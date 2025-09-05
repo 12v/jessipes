@@ -259,8 +259,9 @@ describe('App', () => {
       api.fetchRecipes.mockResolvedValue(mockRecipes)
     })
 
-    test('deletes recipe when Delete button is clicked', async () => {
+    test('deletes recipe when Delete button is clicked and confirmed', async () => {
       const user = userEvent.setup()
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
       api.softDeleteRecipe.mockResolvedValue({ ...mockRecipes[0], deleted: true })
       
       render(<App />)
@@ -270,7 +271,27 @@ describe('App', () => {
       const deleteButtons = screen.getAllByText('Delete')
       await user.click(deleteButtons[0])
       
+      expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete this recipe?')
       expect(api.softDeleteRecipe).toHaveBeenCalledWith('test-secret', '1')
+      
+      confirmSpy.mockRestore()
+    })
+
+    test('does not delete recipe when deletion is cancelled', async () => {
+      const user = userEvent.setup()
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      const deleteButtons = screen.getAllByText('Delete')
+      await user.click(deleteButtons[0])
+      
+      expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete this recipe?')
+      expect(api.softDeleteRecipe).not.toHaveBeenCalled()
+      
+      confirmSpy.mockRestore()
     })
 
     test('enters edit mode when Edit button is clicked', async () => {
