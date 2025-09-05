@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import './App.css';
-import { fetchRecipes, addRecipe, softDeleteRecipe, updateRecipe } from './api';
+import { fetchRecipes, addRecipe, softDeleteRecipe, undeleteRecipe, updateRecipe } from './api';
 
 const LOCAL_SECRET_KEY = 'jessipes_cloudflare_secret';
 
@@ -19,6 +19,7 @@ function App() {
   const [zoomedImage, setZoomedImage] = useState(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showConfirmDelete, setShowConfirmDelete] = useState(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
 
   useEffect(() => {
@@ -91,6 +92,16 @@ function App() {
     setShowConfirmDelete(null);
   }
 
+  async function handleUndelete(recipe) {
+    try {
+      const updatedRecipe = await undeleteRecipe(secret, recipe.id);
+      setRecipes(prev => prev.map(r => r.id === recipe.id ? updatedRecipe : r));
+    } catch (error) {
+      console.error('Failed to undelete recipe:', error);
+      alert('Failed to undelete recipe. Please try again.');
+    }
+  }
+
   function handleStartEdit(recipe) {
     setEditingRecipe(recipe.id);
     setEditData({ title: recipe.title || '', text: recipe.text || '' });
@@ -132,24 +143,37 @@ function App() {
   }
 
   const filteredRecipes = recipes.filter(recipe => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      recipe.title?.toLowerCase().includes(searchLower) ||
-      recipe.text?.toLowerCase().includes(searchLower) ||
-      recipe.url?.toLowerCase().includes(searchLower)
-    );
+    const matchesSearch = !searchTerm || (() => {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        recipe.title?.toLowerCase().includes(searchLower) ||
+        recipe.text?.toLowerCase().includes(searchLower) ||
+        recipe.url?.toLowerCase().includes(searchLower)
+      );
+    })();
+    
+    const matchesDeletedFilter = showDeleted ? recipe.deleted : !recipe.deleted;
+    
+    return matchesSearch && matchesDeletedFilter;
   });
 
   return (
     <div className="container">
       <h1>Jessipes</h1>
       
-      {!showAdd && (
-        <button onClick={() => setShowAdd(true)} className="add-recipe-button">
-          Add Recipe
+      <div className="top-buttons">
+        {!showAdd && (
+          <button onClick={() => setShowAdd(true)} className="add-recipe-button">
+            Add Recipe
+          </button>
+        )}
+        <button 
+          onClick={() => setShowDeleted(!showDeleted)} 
+          className={`toggle-deleted-button ${showDeleted ? 'active' : ''}`}
+        >
+          {showDeleted ? 'Show Active' : 'Show Deleted'}
         </button>
-      )}
+      </div>
       {showAdd && (
         <form onSubmit={handleAddRecipe} className="add-form">
           <select value={addType} onChange={e => setAddType(e.target.value)}>
@@ -220,8 +244,8 @@ function App() {
       
       {loading ? <p>Loading...</p> : (
         <ul className="recipe-list">
-          {filteredRecipes.filter(r => !r.deleted).map(recipe => (
-            <li key={recipe.id} className="recipe-item">
+          {filteredRecipes.map(recipe => (
+            <li key={recipe.id} className={`recipe-item ${recipe.deleted ? 'deleted' : ''}`}>
               {editingRecipe === recipe.id ? (
                 <form onSubmit={handleUpdateRecipe} className="edit-form">
                   <input
@@ -274,8 +298,14 @@ function App() {
                   )}
                   {recipe.text && <p className="recipe-text">{recipe.text}</p>}
                   <div className="recipe-actions">
-                    <button onClick={() => handleStartEdit(recipe)} className="edit-btn">Edit</button>
-                    <button onClick={() => handleDelete(recipe)} className="delete-btn">Delete</button>
+                    {!recipe.deleted ? (
+                      <>
+                        <button onClick={() => handleStartEdit(recipe)} className="edit-btn">Edit</button>
+                        <button onClick={() => handleDelete(recipe)} className="delete-btn">Delete</button>
+                      </>
+                    ) : (
+                      <button onClick={() => handleUndelete(recipe)} className="undelete-btn">Restore</button>
+                    )}
                   </div>
                 </>
               )}

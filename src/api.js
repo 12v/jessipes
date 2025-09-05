@@ -39,6 +39,19 @@ export async function softDeleteRecipe(secret, id) {
     return await res.json();
 }
 
+export async function undeleteRecipe(secret, id) {
+    const res = await fetch(`${WORKER_URL}/recipes/${id}`, {
+        method: 'PATCH',
+        headers: {
+            Authorization: secret,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ deleted: false }),
+    });
+    if (!res.ok) throw new Error('Failed to undelete recipe');
+    return await res.json();
+}
+
 export async function updateRecipe(secret, id, updates) {
     const res = await fetch(`${WORKER_URL}/recipes/${id}`, {
         method: 'PATCH',
