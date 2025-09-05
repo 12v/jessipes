@@ -1,4 +1,4 @@
-import { fetchRecipes, addRecipe, softDeleteRecipe, updateRecipe } from './api'
+import { fetchRecipes, addRecipe, softDeleteRecipe, undeleteRecipe, updateRecipe } from './api'
 
 const WORKER_URL = 'https://jessipes-worker.12v.workers.dev'
 const mockSecret = 'test-secret'
@@ -170,6 +170,41 @@ describe('API Functions', () => {
       })
 
       await expect(softDeleteRecipe(mockSecret, recipeId)).rejects.toThrow('Failed to delete recipe')
+    })
+  })
+
+  describe('undeleteRecipe', () => {
+    test('undeletes recipe successfully', async () => {
+      const recipeId = 'recipe-123'
+      const expectedResponse = { id: recipeId, deleted: false }
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => expectedResponse,
+      })
+
+      const result = await undeleteRecipe(mockSecret, recipeId)
+
+      expect(fetch).toHaveBeenCalledWith(`${WORKER_URL}/recipes/${recipeId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: mockSecret,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ deleted: false }),
+      })
+      expect(result).toEqual(expectedResponse)
+    })
+
+    test('throws error when undelete fails', async () => {
+      const recipeId = 'recipe-123'
+
+      global.fetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+      })
+
+      await expect(undeleteRecipe(mockSecret, recipeId)).rejects.toThrow('Failed to undelete recipe')
     })
   })
 

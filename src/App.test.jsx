@@ -8,6 +8,7 @@ vi.mock('./api', () => ({
   fetchRecipes: vi.fn(),
   addRecipe: vi.fn(),
   softDeleteRecipe: vi.fn(),
+  undeleteRecipe: vi.fn(),
   updateRecipe: vi.fn(),
 }))
 
@@ -302,6 +303,93 @@ describe('App', () => {
       
       // Modal should be gone
       expect(screen.queryByText('Confirm Delete')).not.toBeInTheDocument()
+    })
+
+    test('should toggle between active and deleted recipes', async () => {
+      const user = userEvent.setup()
+      const recipesWithDeleted = [
+        mockRecipes[0],
+        { ...mockRecipes[1], deleted: true }
+      ]
+      api.fetchRecipes.mockResolvedValue(recipesWithDeleted)
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      // Initially shows only active recipes
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
+      
+      // Toggle to show deleted recipes
+      const toggleButton = screen.getByText('Show Deleted')
+      await user.click(toggleButton)
+      
+      await waitFor(() => screen.getByText('Test Recipe 2'))
+      
+      // Now shows only deleted recipes
+      expect(screen.queryByText('Test Recipe 1')).not.toBeInTheDocument()
+      expect(screen.getByText('Test Recipe 2')).toBeInTheDocument()
+      
+      // Toggle back to show active recipes
+      const showActiveButton = screen.getByText('Show Active')
+      await user.click(showActiveButton)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      // Back to showing only active recipes
+      expect(screen.getByText('Test Recipe 1')).toBeInTheDocument()
+      expect(screen.queryByText('Test Recipe 2')).not.toBeInTheDocument()
+    })
+
+    test('should restore deleted recipe', async () => {
+      const user = userEvent.setup()
+      const deletedRecipe = { ...mockRecipes[0], deleted: true }
+      api.fetchRecipes.mockResolvedValue([deletedRecipe])
+      api.undeleteRecipe.mockResolvedValue({ ...mockRecipes[0], deleted: false })
+      
+      render(<App />)
+      
+      // Switch to deleted view
+      const toggleButton = screen.getByText('Show Deleted')
+      await user.click(toggleButton)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      // Click restore button
+      const restoreButton = screen.getByText('Restore')
+      await user.click(restoreButton)
+      
+      expect(api.undeleteRecipe).toHaveBeenCalledWith('test-secret', '1')
+    })
+
+    test('should prevent multiple undelete requests', async () => {
+      const user = userEvent.setup()
+      const deletedRecipe = { ...mockRecipes[0], deleted: true }
+      api.fetchRecipes.mockResolvedValue([deletedRecipe])
+      
+      // Make undelete slow to test race condition
+      api.undeleteRecipe.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
+      
+      render(<App />)
+      
+      // Switch to deleted view
+      const toggleButton = screen.getByText('Show Deleted')
+      await user.click(toggleButton)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      // Click restore button multiple times rapidly
+      const restoreButton = screen.getByText('Restore')
+      await user.click(restoreButton)
+      await user.click(restoreButton)
+      await user.click(restoreButton)
+      
+      // Should show loading state
+      expect(screen.getByText('Restoring...')).toBeInTheDocument()
+      
+      // Should only be called once
+      expect(api.undeleteRecipe).toHaveBeenCalledTimes(1)
     })
 
     test('enters edit mode when Edit button is clicked', async () => {
