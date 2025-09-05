@@ -272,7 +272,7 @@ describe('App', () => {
       
       // Modal should appear
       expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
-      expect(screen.getByText('Are you sure you want to delete this recipe?')).toBeInTheDocument()
+      expect(screen.getByText('Are you sure you want to delete "Test Recipe 1"?')).toBeInTheDocument()
       
       // Click confirm delete in modal
       const confirmButton = document.querySelector('.delete-confirm-btn')
@@ -423,7 +423,7 @@ describe('App', () => {
       
       await waitFor(() => screen.getByText('Multi-line Recipe'))
       
-      const textElement = screen.getByText((content, element) => {
+      const textElement = screen.getByText((_, element) => {
         return element.textContent === 'Line 1\nLine 2\nLine 3'
       })
       expect(textElement).toHaveClass('recipe-text')
