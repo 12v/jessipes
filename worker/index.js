@@ -1,6 +1,80 @@
 // Cloudflare Worker for Jessipes API
 // Handles recipe storage and retrieval using Cloudflare KV
 
+// Extract OpenGraph/meta preview image from a URL
+async function extractPreviewImage(url) {
+    try {
+        // Fetch the HTML page
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; Jessipes/1.0; +https://jessipes.com)'
+            }
+        });
+        
+        if (!response.ok) {
+            return null;
+        }
+        
+        const html = await response.text();
+        
+        // Extract OpenGraph image
+        const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+        if (ogImageMatch) {
+            const imageUrl = ogImageMatch[1];
+            // Make relative URLs absolute
+            if (imageUrl.startsWith('//')) {
+                return `https:${imageUrl}`;
+            } else if (imageUrl.startsWith('/')) {
+                const urlObj = new URL(url);
+                return `${urlObj.protocol}//${urlObj.host}${imageUrl}`;
+            } else if (!imageUrl.startsWith('http')) {
+                const urlObj = new URL(url);
+                return `${urlObj.protocol}//${urlObj.host}/${imageUrl}`;
+            }
+            return imageUrl;
+        }
+        
+        // Fallback to Twitter card image
+        const twitterImageMatch = html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
+        if (twitterImageMatch) {
+            const imageUrl = twitterImageMatch[1];
+            // Make relative URLs absolute
+            if (imageUrl.startsWith('//')) {
+                return `https:${imageUrl}`;
+            } else if (imageUrl.startsWith('/')) {
+                const urlObj = new URL(url);
+                return `${urlObj.protocol}//${urlObj.host}${imageUrl}`;
+            } else if (!imageUrl.startsWith('http')) {
+                const urlObj = new URL(url);
+                return `${urlObj.protocol}//${urlObj.host}/${imageUrl}`;
+            }
+            return imageUrl;
+        }
+        
+        // Fallback to any image meta tag
+        const imageMatch = html.match(/<meta\s+(?:name|property)=["'](?:image|thumbnail)["']\s+content=["']([^"']+)["']/i);
+        if (imageMatch) {
+            const imageUrl = imageMatch[1];
+            // Make relative URLs absolute
+            if (imageUrl.startsWith('//')) {
+                return `https:${imageUrl}`;
+            } else if (imageUrl.startsWith('/')) {
+                const urlObj = new URL(url);
+                return `${urlObj.protocol}//${urlObj.host}${imageUrl}`;
+            } else if (!imageUrl.startsWith('http')) {
+                const urlObj = new URL(url);
+                return `${urlObj.protocol}//${urlObj.host}/${imageUrl}`;
+            }
+            return imageUrl;
+        }
+        
+        return null;
+    } catch (error) {
+        console.warn('Error extracting preview image:', error);
+        return null;
+    }
+}
+
 export default {
     async fetch(request, env) {
         try {
@@ -76,6 +150,18 @@ export default {
                             text: formData.get('text'),
                             created: new Date().toISOString(),
                         };
+
+                        // Extract preview image for URL recipes
+                        if (recipe.url) {
+                            try {
+                                const previewImage = await extractPreviewImage(recipe.url);
+                                if (previewImage) {
+                                    recipe.previewImage = previewImage;
+                                }
+                            } catch (error) {
+                                console.warn('Failed to extract preview image:', error);
+                            }
+                        }
 
                         // Handle photo upload
                         const photo = formData.get('photo');

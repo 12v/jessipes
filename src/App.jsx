@@ -239,6 +239,23 @@ function App() {
                   ) : (
                     <strong className="recipe-title">{recipe.title || 'Untitled'}</strong>
                   )}
+                  {recipe.previewImage && (
+                    <img
+                      src={recipe.previewImage}
+                      alt={recipe.title || 'Recipe preview'}
+                      className="recipe-preview-image"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                      onClick={() => {
+                        setScrollPosition(window.scrollY);
+                        setZoomedImage({
+                          src: recipe.previewImage,
+                          alt: recipe.title || 'Recipe preview'
+                        });
+                      }}
+                    />
+                  )}
                   {recipe.url && (
                     <a href={recipe.url} target="_blank" rel="noopener noreferrer" className="recipe-url">
                       {recipe.url}
