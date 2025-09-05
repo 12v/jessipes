@@ -20,6 +20,7 @@ function App() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [showConfirmDelete, setShowConfirmDelete] = useState(null);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [undeletingIds, setUndeletingIds] = useState(new Set());
 
 
   useEffect(() => {
@@ -93,12 +94,21 @@ function App() {
   }
 
   async function handleUndelete(recipe) {
+    if (undeletingIds.has(recipe.id)) return;
+    
+    setUndeletingIds(prev => new Set([...prev, recipe.id]));
     try {
       const updatedRecipe = await undeleteRecipe(secret, recipe.id);
       setRecipes(prev => prev.map(r => r.id === recipe.id ? updatedRecipe : r));
     } catch (error) {
       console.error('Failed to undelete recipe:', error);
       alert('Failed to undelete recipe. Please try again.');
+    } finally {
+      setUndeletingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(recipe.id);
+        return newSet;
+      });
     }
   }
 
@@ -304,7 +314,13 @@ function App() {
                         <button onClick={() => handleDelete(recipe)} className="delete-btn">Delete</button>
                       </>
                     ) : (
-                      <button onClick={() => handleUndelete(recipe)} className="undelete-btn">Restore</button>
+                      <button 
+                        onClick={() => handleUndelete(recipe)} 
+                        className="undelete-btn"
+                        disabled={undeletingIds.has(recipe.id)}
+                      >
+                        {undeletingIds.has(recipe.id) ? 'Restoring...' : 'Restore'}
+                      </button>
                     )}
                   </div>
                 </>

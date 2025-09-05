@@ -433,6 +433,12 @@ button:hover {
   transform: translateY(-1px);
 }
 
+.undelete-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .edit-btn {
   background: transparent;
   color: #666;
