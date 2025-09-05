@@ -18,6 +18,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [zoomedImage, setZoomedImage] = useState(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(null);
 
 
   useEffect(() => {
@@ -70,14 +71,24 @@ function App() {
     }
   }
 
-  async function handleDelete(id) {
+  function handleDelete(recipe) {
+    setShowConfirmDelete(recipe);
+  }
+
+  async function confirmDelete() {
     try {
-      const updatedRecipe = await softDeleteRecipe(secret, id);
-      setRecipes(prev => prev.map(r => r.id === id ? updatedRecipe : r));
+      const updatedRecipe = await softDeleteRecipe(secret, showConfirmDelete.id);
+      setRecipes(prev => prev.map(r => r.id === showConfirmDelete.id ? updatedRecipe : r));
     } catch (error) {
       console.error('Failed to delete recipe:', error);
       alert('Failed to delete recipe. Please try again.');
+    } finally {
+      setShowConfirmDelete(null);
     }
+  }
+
+  function cancelDelete() {
+    setShowConfirmDelete(null);
   }
 
   function handleStartEdit(recipe) {
@@ -264,7 +275,7 @@ function App() {
                   {recipe.text && <p className="recipe-text">{recipe.text}</p>}
                   <div className="recipe-actions">
                     <button onClick={() => handleStartEdit(recipe)} className="edit-btn">Edit</button>
-                    <button onClick={() => handleDelete(recipe.id)} className="delete-btn">Delete</button>
+                    <button onClick={() => handleDelete(recipe)} className="delete-btn">Delete</button>
                   </div>
                 </>
               )}
@@ -298,6 +309,19 @@ function App() {
               className="zoomed-image"
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+      
+      {showConfirmDelete && (
+        <div className="modal-overlay" onClick={cancelDelete}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete "{showConfirmDelete.title || 'Untitled'}"?</p>
+            <div className="modal-buttons">
+              <button onClick={confirmDelete} className="delete-confirm-btn">Delete</button>
+              <button onClick={cancelDelete} className="cancel-btn">Cancel</button>
+            </div>
           </div>
         </div>
       )}

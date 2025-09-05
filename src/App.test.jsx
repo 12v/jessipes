@@ -259,7 +259,7 @@ describe('App', () => {
       api.fetchRecipes.mockResolvedValue(mockRecipes)
     })
 
-    test('deletes recipe when Delete button is clicked', async () => {
+    test('deletes recipe when Delete button is clicked and confirmed', async () => {
       const user = userEvent.setup()
       api.softDeleteRecipe.mockResolvedValue({ ...mockRecipes[0], deleted: true })
       
@@ -270,7 +270,38 @@ describe('App', () => {
       const deleteButtons = screen.getAllByText('Delete')
       await user.click(deleteButtons[0])
       
+      // Modal should appear
+      expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
+      expect(screen.getByText('Are you sure you want to delete "Test Recipe 1"?')).toBeInTheDocument()
+      
+      // Click confirm delete in modal
+      const confirmButton = document.querySelector('.delete-confirm-btn')
+      await user.click(confirmButton)
+      
       expect(api.softDeleteRecipe).toHaveBeenCalledWith('test-secret', '1')
+    })
+
+    test('does not delete recipe when deletion is cancelled', async () => {
+      const user = userEvent.setup()
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByText('Test Recipe 1'))
+      
+      const deleteButtons = screen.getAllByText('Delete')
+      await user.click(deleteButtons[0])
+      
+      // Modal should appear
+      expect(screen.getByText('Confirm Delete')).toBeInTheDocument()
+      
+      // Click cancel
+      const cancelButton = screen.getByText('Cancel')
+      await user.click(cancelButton)
+      
+      expect(api.softDeleteRecipe).not.toHaveBeenCalled()
+      
+      // Modal should be gone
+      expect(screen.queryByText('Confirm Delete')).not.toBeInTheDocument()
     })
 
     test('enters edit mode when Edit button is clicked', async () => {
@@ -392,7 +423,7 @@ describe('App', () => {
       
       await waitFor(() => screen.getByText('Multi-line Recipe'))
       
-      const textElement = screen.getByText((content, element) => {
+      const textElement = screen.getByText((_, element) => {
         return element.textContent === 'Line 1\nLine 2\nLine 3'
       })
       expect(textElement).toHaveClass('recipe-text')
