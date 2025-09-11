@@ -5,20 +5,20 @@
 function isValidUrl(url) {
     try {
         const urlObj = new URL(url);
-        
+
         // Only allow HTTP/HTTPS protocols
         if (!['http:', 'https:'].includes(urlObj.protocol)) {
             return false;
         }
-        
+
         // Block private/internal IP ranges
         const hostname = urlObj.hostname;
-        
+
         // Block localhost and loopback addresses
         if (['localhost', '127.0.0.1', '::1'].includes(hostname)) {
             return false;
         }
-        
+
         // Block private IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
         const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
         const ipMatch = hostname.match(ipv4Regex);
@@ -33,7 +33,7 @@ function isValidUrl(url) {
             // 169.254.0.0/16 (link-local)
             if (a === 169 && b === 254) return false;
         }
-        
+
         return true;
     } catch {
         return false;
@@ -60,14 +60,14 @@ function extractMetaContent(html, property, name = null) {
         new RegExp(`<meta\\s+property=["']${property}["']\\s+content=["']([^"']*)["']`, 'i'),
         new RegExp(`<meta\\s+content=["']([^"']*)["']\\s+property=["']${property}["']`, 'i')
     ];
-    
+
     if (name) {
         patterns.push(
             new RegExp(`<meta\\s+name=["']${name}["']\\s+content=["']([^"']*)["']`, 'i'),
             new RegExp(`<meta\\s+content=["']([^"']*)["']\\s+name=["']${name}["']`, 'i')
         );
     }
-    
+
     for (const pattern of patterns) {
         const match = html.match(pattern);
         if (match && match[1]) {
@@ -92,53 +92,53 @@ async function extractPreviewImage(url) {
             console.warn('Invalid or potentially dangerous URL:', url);
             return null;
         }
-        
+
         // Fetch the HTML page with timeout and size limits
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
+
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (compatible; Jessipes/1.0; +https://github.com/12v/jessipes)'
             },
             signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
             return null;
         }
-        
+
         // Check content type to ensure it's HTML
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('text/html')) {
             return null;
         }
-        
+
         // Limit response size to prevent memory issues
         const MAX_HTML_SIZE = 1024 * 1024; // 1MB
         const reader = response.body.getReader();
         const chunks = [];
         let totalSize = 0;
-        
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            
+
             totalSize += value.length;
             if (totalSize > MAX_HTML_SIZE) {
                 reader.cancel();
                 throw new Error('Response too large');
             }
-            
+
             chunks.push(value);
         }
-        
+
         const html = new TextDecoder().decode(new Uint8Array(
             chunks.reduce((acc, chunk) => [...acc, ...chunk], [])
         ));
-        
+
         // Extract OpenGraph image
         let imageUrl = extractMetaContent(html, 'og:image');
         if (imageUrl) {
@@ -147,7 +147,7 @@ async function extractPreviewImage(url) {
                 return resolvedUrl;
             }
         }
-        
+
         // Fallback to Twitter card image
         imageUrl = extractMetaContent(html, 'twitter:image', 'twitter:image');
         if (imageUrl) {
@@ -156,7 +156,7 @@ async function extractPreviewImage(url) {
                 return resolvedUrl;
             }
         }
-        
+
         // Fallback to any image meta tag
         imageUrl = extractMetaContent(html, 'image') || extractMetaContent(html, 'thumbnail', 'thumbnail');
         if (imageUrl) {
@@ -165,7 +165,7 @@ async function extractPreviewImage(url) {
                 return resolvedUrl;
             }
         }
-        
+
         return null;
     } catch (error) {
         if (error.name === 'AbortError') {
@@ -231,7 +231,7 @@ export default {
                         const recipeData = await Promise.all(
                             recipes.keys.map(async key => {
                                 const recipe = await env.RECIPES.get(key.name, { type: 'json' });
-                                return recipe && !recipe.deleted ? { id: key.name, ...recipe } : null;
+                                return recipe ? { id: key.name, ...recipe } : null;
                             })
                         );
                         const filteredRecipes = recipeData.filter(r => r !== null);

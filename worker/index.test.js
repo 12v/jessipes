@@ -1,3 +1,4 @@
+import { expect } from 'vitest'
 import worker from './index.js'
 
 // Mock environment setup
@@ -66,9 +67,9 @@ describe('Cloudflare Worker', () => {
   describe('CORS Handling', () => {
     test('handles OPTIONS request for CORS preflight', async () => {
       const request = createRequest('https://example.com/recipes', { method: 'OPTIONS' })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(200)
       expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
       expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET, POST, PATCH, OPTIONS')
@@ -79,9 +80,9 @@ describe('Cloudflare Worker', () => {
       const request = createRequest('https://example.com/recipes', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*')
     })
   })
@@ -91,10 +92,10 @@ describe('Cloudflare Worker', () => {
       const photoId = 'test-photo-id'
       const mockPhotoData = 'mock-photo-data'
       env._mockR2.set(`photos/${photoId}`, mockPhotoData)
-      
+
       const request = createRequest(`https://example.com/photos/${photoId}`)
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(200)
       expect(response.headers.get('Content-Type')).toBe('image/jpeg')
       expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000')
@@ -104,7 +105,7 @@ describe('Cloudflare Worker', () => {
     test('returns 404 for non-existent photo', async () => {
       const request = createRequest('https://example.com/photos/non-existent')
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(404)
       expect(await response.text()).toBe('Photo not found')
     })
@@ -115,10 +116,10 @@ describe('Cloudflare Worker', () => {
         body: 'mock-photo-data',
         httpMetadata: { contentType: 'image/png' },
       })
-      
+
       const request = createRequest(`https://example.com/photos/${photoId}`)
       const response = await worker.fetch(request, env)
-      
+
       expect(response.headers.get('Content-Type')).toBe('image/png')
     })
   })
@@ -127,7 +128,7 @@ describe('Cloudflare Worker', () => {
     test('returns 401 for missing authorization', async () => {
       const request = createRequest('https://example.com/recipes')
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(401)
       expect(await response.text()).toBe('Unauthorized')
     })
@@ -137,7 +138,7 @@ describe('Cloudflare Worker', () => {
         headers: { Authorization: 'invalid-secret' },
       })
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(401)
       expect(await response.text()).toBe('Unauthorized')
     })
@@ -147,7 +148,7 @@ describe('Cloudflare Worker', () => {
         headers: { Authorization: 'test-secret' },
       })
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(200)
     })
   })
@@ -157,10 +158,10 @@ describe('Cloudflare Worker', () => {
       const request = createRequest('https://example.com/recipes', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data).toEqual([])
     })
@@ -168,64 +169,65 @@ describe('Cloudflare Worker', () => {
     test('returns recipes sorted by creation date', async () => {
       const recipe1 = { title: 'Recipe 1', created: '2024-01-01T00:00:00Z' }
       const recipe2 = { title: 'Recipe 2', created: '2024-01-02T00:00:00Z' }
-      
+
       env._mockKV.set('id1', JSON.stringify(recipe1))
       env._mockKV.set('id2', JSON.stringify(recipe2))
-      
+
       env.RECIPES.list.mockResolvedValue({
         keys: [{ name: 'id1' }, { name: 'id2' }],
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data).toHaveLength(2)
       expect(data[0].title).toBe('Recipe 2') // Newer first
       expect(data[1].title).toBe('Recipe 1')
     })
 
-    test('filters out deleted recipes', async () => {
+    test('doesn\'t filter out deleted recipes', async () => {
       const recipe1 = { title: 'Active Recipe', created: '2024-01-01T00:00:00Z' }
       const recipe2 = { title: 'Deleted Recipe', created: '2024-01-02T00:00:00Z', deleted: true }
-      
+
       env._mockKV.set('id1', JSON.stringify(recipe1))
       env._mockKV.set('id2', JSON.stringify(recipe2))
-      
+
       env.RECIPES.list.mockResolvedValue({
         keys: [{ name: 'id1' }, { name: 'id2' }],
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
-      expect(data).toHaveLength(1)
-      expect(data[0].title).toBe('Active Recipe')
+
+      expect(data).toHaveLength(2)
+      expect(data[0].title).toBe('Deleted Recipe')
+      expect(data[1].title).toBe('Active Recipe')
     })
 
     test('includes recipe ID in response', async () => {
       const recipe = { title: 'Test Recipe', created: '2024-01-01T00:00:00Z' }
       env._mockKV.set('test-id', JSON.stringify(recipe))
-      
+
       env.RECIPES.list.mockResolvedValue({
         keys: [{ name: 'test-id' }],
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data[0]).toMatchObject({
         id: 'test-id',
         title: 'Test Recipe',
@@ -241,16 +243,16 @@ describe('Cloudflare Worker', () => {
         url: 'https://example.com/recipe',
         text: 'Recipe notes',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data).toMatchObject({
         title: 'Test Recipe',
@@ -267,16 +269,16 @@ describe('Cloudflare Worker', () => {
         title: 'Text Recipe',
         text: 'Recipe instructions',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data).toMatchObject({
         title: 'Text Recipe',
@@ -294,16 +296,16 @@ describe('Cloudflare Worker', () => {
         title: 'No Photo Recipe',
         text: 'No photo here',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data.photo).toBeUndefined()
       expect(env.PHOTOS.put).not.toHaveBeenCalled()
@@ -311,16 +313,16 @@ describe('Cloudflare Worker', () => {
 
     test('generates valid ISO date string', async () => {
       const formData = createFormData({ title: 'Date Test Recipe' })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.created).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
       expect(new Date(data.created)).toBeInstanceOf(Date)
     })
@@ -336,7 +338,7 @@ describe('Cloudflare Worker', () => {
         <body></body>
         </html>
       `
-      
+
       global.fetch = vi.fn()
         .mockResolvedValueOnce({
           ok: true,
@@ -353,42 +355,42 @@ describe('Cloudflare Worker', () => {
           ok: true,
           json: async () => ({}),
         })
-      
+
       const formData = createFormData({
         title: 'Recipe with Preview',
         url: 'https://example.com/recipe',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBe('https://example.com/preview.jpg')
     })
 
     test('handles preview image extraction failure gracefully', async () => {
       // Mock fetch to fail for preview extraction
       global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'))
-      
+
       const formData = createFormData({
         title: 'Recipe with Failed Preview',
         url: 'https://example.com/recipe',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data.previewImage).toBeUndefined()
     })
@@ -404,12 +406,12 @@ describe('Cloudflare Worker', () => {
         created: '2024-01-01T00:00:00Z',
       }
       env._mockKV.set(recipeId, JSON.stringify(existingRecipe))
-      
+
       const updates = {
         title: 'Updated Title',
         text: 'Updated text',
       }
-      
+
       const request = createRequest(`https://example.com/recipes/${recipeId}`, {
         method: 'PATCH',
         headers: {
@@ -418,10 +420,10 @@ describe('Cloudflare Worker', () => {
         },
         body: JSON.stringify(updates),
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data).toMatchObject({
         id: recipeId,
@@ -429,7 +431,7 @@ describe('Cloudflare Worker', () => {
         text: 'Updated text',
         created: '2024-01-01T00:00:00Z', // Preserved
       })
-      
+
       expect(env.RECIPES.put).toHaveBeenCalledWith(
         recipeId,
         JSON.stringify({
@@ -446,7 +448,7 @@ describe('Cloudflare Worker', () => {
         created: '2024-01-01T00:00:00Z',
       }
       env._mockKV.set(recipeId, JSON.stringify(existingRecipe))
-      
+
       const request = createRequest(`https://example.com/recipes/${recipeId}`, {
         method: 'PATCH',
         headers: {
@@ -455,10 +457,10 @@ describe('Cloudflare Worker', () => {
         },
         body: JSON.stringify({ deleted: true }),
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(response.status).toBe(200)
       expect(data).toMatchObject({
         id: recipeId,
@@ -477,9 +479,9 @@ describe('Cloudflare Worker', () => {
         },
         body: JSON.stringify({ title: 'Updated' }),
       })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(404)
       expect(await response.text()).toBe('Recipe not found')
     })
@@ -492,7 +494,7 @@ describe('Cloudflare Worker', () => {
         created: '2024-01-01T00:00:00Z',
       }
       env._mockKV.set(recipeId, JSON.stringify(existingRecipe))
-      
+
       const request = createRequest(`https://example.com/recipes/${recipeId}`, {
         method: 'PATCH',
         headers: {
@@ -501,10 +503,10 @@ describe('Cloudflare Worker', () => {
         },
         body: JSON.stringify({ title: 'Only Title Updated' }),
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data).toMatchObject({
         title: 'Only Title Updated',
         text: 'Original text',
@@ -528,7 +530,7 @@ describe('Cloudflare Worker', () => {
         </head>
         </html>
       `
-      
+
       global.fetch.mockResolvedValue({
         ok: true,
         headers: { get: () => 'text/html' },
@@ -540,21 +542,21 @@ describe('Cloudflare Worker', () => {
           })
         }
       })
-      
+
       const formData = createFormData({
         title: 'OpenGraph Test',
         url: 'https://example.com/page',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBe('https://example.com/og-image.jpg')
     })
 
@@ -566,7 +568,7 @@ describe('Cloudflare Worker', () => {
         </head>
         </html>
       `
-      
+
       global.fetch.mockResolvedValue({
         ok: true,
         headers: { get: () => 'text/html' },
@@ -578,21 +580,21 @@ describe('Cloudflare Worker', () => {
           })
         }
       })
-      
+
       const formData = createFormData({
         title: 'Twitter Card Test',
         url: 'https://example.com/page',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBe('https://example.com/twitter-image.jpg')
     })
 
@@ -604,7 +606,7 @@ describe('Cloudflare Worker', () => {
         </head>
         </html>
       `
-      
+
       global.fetch.mockResolvedValue({
         ok: true,
         headers: { get: () => 'text/html' },
@@ -616,21 +618,21 @@ describe('Cloudflare Worker', () => {
           })
         }
       })
-      
+
       const formData = createFormData({
         title: 'Relative URL Test',
         url: 'https://example.com/recipe-page',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBe('https://example.com/images/preview.jpg')
     })
 
@@ -642,7 +644,7 @@ describe('Cloudflare Worker', () => {
         </head>
         </html>
       `
-      
+
       global.fetch.mockResolvedValue({
         ok: true,
         headers: { get: () => 'text/html' },
@@ -654,21 +656,21 @@ describe('Cloudflare Worker', () => {
           })
         }
       })
-      
+
       const formData = createFormData({
         title: 'Protocol Relative Test',
         url: 'https://example.com/page',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBe('https://cdn.example.com/image.jpg')
     })
 
@@ -677,16 +679,16 @@ describe('Cloudflare Worker', () => {
         title: 'SSRF Test',
         url: 'http://192.168.1.1/recipe',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBeUndefined()
       expect(global.fetch).not.toHaveBeenCalled()
     })
@@ -696,16 +698,16 @@ describe('Cloudflare Worker', () => {
         title: 'Localhost Test',
         url: 'http://localhost:8080/recipe',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBeUndefined()
       expect(global.fetch).not.toHaveBeenCalled()
     })
@@ -715,16 +717,16 @@ describe('Cloudflare Worker', () => {
         title: 'File Protocol Test',
         url: 'file:///etc/passwd',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBeUndefined()
       expect(global.fetch).not.toHaveBeenCalled()
     })
@@ -734,21 +736,21 @@ describe('Cloudflare Worker', () => {
         ok: true,
         headers: { get: () => 'application/json' },
       })
-      
+
       const formData = createFormData({
         title: 'JSON Content Test',
         url: 'https://example.com/api/data',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBeUndefined()
     })
 
@@ -760,7 +762,7 @@ describe('Cloudflare Worker', () => {
         </head>
         </html>
       `
-      
+
       global.fetch.mockResolvedValue({
         ok: true,
         headers: { get: () => 'text/html' },
@@ -772,21 +774,21 @@ describe('Cloudflare Worker', () => {
           })
         }
       })
-      
+
       const formData = createFormData({
         title: 'Entity Decoding Test',
         url: 'https://example.com/page',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBe('https://example.com/image?param=value&other=test')
     })
 
@@ -798,7 +800,7 @@ describe('Cloudflare Worker', () => {
         </head>
         </html>
       `
-      
+
       global.fetch.mockResolvedValue({
         ok: true,
         headers: { get: () => 'text/html' },
@@ -810,21 +812,21 @@ describe('Cloudflare Worker', () => {
           })
         }
       })
-      
+
       const formData = createFormData({
         title: 'No Image Test',
         url: 'https://example.com/page',
       })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
       const data = await response.json()
-      
+
       expect(data.previewImage).toBeUndefined()
     })
   })
@@ -834,29 +836,29 @@ describe('Cloudflare Worker', () => {
       const request = createRequest('https://example.com/unknown', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(404)
       expect(await response.text()).toBe('Not Found')
     })
 
     test('handles KV errors gracefully', async () => {
       env.RECIPES.list.mockRejectedValue(new Error('KV Error'))
-      
+
       const request = createRequest('https://example.com/recipes', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(500)
       expect(await response.text()).toBe('KV Error')
     })
 
     test('handles malformed JSON in PATCH requests', async () => {
       env._mockKV.set('test-id', JSON.stringify({ title: 'Test' }))
-      
+
       const request = createRequest('https://example.com/recipes/test-id', {
         method: 'PATCH',
         headers: {
@@ -865,9 +867,9 @@ describe('Cloudflare Worker', () => {
         },
         body: 'invalid json',
       })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(500)
     })
   })
@@ -877,23 +879,23 @@ describe('Cloudflare Worker', () => {
       const request = createRequest('https://example.com/recipes', {
         headers: { Authorization: 'test-secret' },
       })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.headers.get('Content-Type')).toBe('application/json')
     })
 
     test('handles FormData content type correctly', async () => {
       const formData = createFormData({ title: 'Test' })
-      
+
       const request = createRequest('https://example.com/recipes', {
         method: 'POST',
         headers: { Authorization: 'test-secret' },
         body: formData,
       })
-      
+
       const response = await worker.fetch(request, env)
-      
+
       expect(response.status).toBe(200)
       expect(response.headers.get('Content-Type')).toBe('application/json')
     })
