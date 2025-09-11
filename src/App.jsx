@@ -173,13 +173,13 @@ function App() {
       
       <div className="top-buttons">
         {!showAdd && (
-          <button onClick={() => setShowAdd(true)} className="add-recipe-button">
+          <button onClick={() => setShowAdd(true)} className="primary-button solid add-recipe-button">
             Add Recipe
           </button>
         )}
         <button 
           onClick={() => setShowDeleted(!showDeleted)} 
-          className={`toggle-deleted-button ${showDeleted ? 'active' : ''}`}
+          className={`primary-button outline ${showDeleted ? 'active' : ''}`}
         >
           {showDeleted ? 'Show Active' : 'Show Deleted'}
         </button>
