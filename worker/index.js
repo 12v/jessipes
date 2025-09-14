@@ -84,6 +84,39 @@ function extractMetaContent(html, property, name = null) {
     return null;
 }
 
+// Extract title from HTML content
+async function extractTitle(html, url) {
+    try {
+        // Try OpenGraph title first
+        let title = extractMetaContent(html, 'og:title');
+        if (title) return title;
+
+        // Try Twitter card title
+        title = extractMetaContent(html, 'twitter:title', 'twitter:title');
+        if (title) return title;
+
+        // Try regular title tag
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+            return titleMatch[1]
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#x27;/g, "'")
+                .replace(/&#x2F;/g, '/')
+                .trim();
+        }
+
+        // Fallback to domain name
+        const urlObj = new URL(url);
+        return urlObj.hostname;
+    } catch (error) {
+        console.warn('Error extracting title:', error);
+        return null;
+    }
+}
+
 // Extract OpenGraph/meta preview image from a URL
 async function extractPreviewImage(url) {
     try {
@@ -290,6 +323,98 @@ export default {
                             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                         );
                     }
+                }
+            }
+
+            // Handle title extraction
+            if (url.pathname === '/extract-title' && request.method === 'GET') {
+                const targetUrl = url.searchParams.get('url');
+                
+                if (!targetUrl) {
+                    return new Response(
+                        JSON.stringify({ error: 'URL parameter required' }),
+                        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
+                }
+
+                // Validate URL to prevent SSRF
+                if (!isValidUrl(targetUrl)) {
+                    return new Response(
+                        JSON.stringify({ error: 'Invalid URL' }),
+                        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
+                }
+
+                try {
+                    // Fetch the HTML page with timeout and size limits
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                    const response = await fetch(targetUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (compatible; Jessipes/1.0; +https://github.com/12v/jessipes)'
+                        },
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        return new Response(
+                            JSON.stringify({ error: 'Failed to fetch URL' }),
+                            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                        );
+                    }
+
+                    // Check content type to ensure it's HTML
+                    const contentType = response.headers.get('content-type') || '';
+                    if (!contentType.includes('text/html')) {
+                        return new Response(
+                            JSON.stringify({ error: 'URL does not return HTML' }),
+                            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                        );
+                    }
+
+                    // Limit response size to prevent memory issues
+                    const MAX_HTML_SIZE = 1024 * 1024; // 1MB
+                    const reader = response.body.getReader();
+                    const chunks = [];
+                    let totalSize = 0;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        totalSize += value.length;
+                        if (totalSize > MAX_HTML_SIZE) {
+                            reader.cancel();
+                            throw new Error('Response too large');
+                        }
+
+                        chunks.push(value);
+                    }
+
+                    const html = new TextDecoder().decode(new Uint8Array(
+                        chunks.reduce((acc, chunk) => [...acc, ...chunk], [])
+                    ));
+
+                    const title = await extractTitle(html, targetUrl);
+                    
+                    return new Response(
+                        JSON.stringify({ title: title || 'Untitled' }),
+                        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        return new Response(
+                            JSON.stringify({ error: 'Request timed out' }),
+                            { status: 408, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                        );
+                    }
+                    return new Response(
+                        JSON.stringify({ error: 'Failed to extract title' }),
+                        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
                 }
             }
 

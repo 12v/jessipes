@@ -64,3 +64,17 @@ export async function updateRecipe(secret, id, updates) {
     if (!res.ok) throw new Error('Failed to update recipe');
     return await res.json();
 }
+
+export async function extractTitleFromUrl(secret, url) {
+    try {
+        const res = await fetch(`${WORKER_URL}/extract-title?url=${encodeURIComponent(url)}`, {
+            headers: { Authorization: secret },
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.title;
+    } catch (error) {
+        console.error('Failed to extract title:', error);
+        return null;
+    }
+}

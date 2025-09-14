@@ -1,4 +1,4 @@
-import { fetchRecipes, addRecipe, softDeleteRecipe, undeleteRecipe, updateRecipe } from './api'
+import { fetchRecipes, addRecipe, softDeleteRecipe, undeleteRecipe, updateRecipe, extractTitleFromUrl } from './api'
 
 const WORKER_URL = 'https://jessipes-worker.12v.workers.dev'
 const mockSecret = 'test-secret'
@@ -325,6 +325,95 @@ describe('API Functions', () => {
       fetch.mock.calls.forEach(([, options]) => {
         expect(options.headers.Authorization).toBe(mockSecret)
       })
+    })
+  })
+
+  describe('extractTitleFromUrl', () => {
+    test('extracts title successfully', async () => {
+      const url = 'https://example.com/recipe'
+      const expectedResponse = { title: 'Delicious Recipe Title' }
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => expectedResponse,
+      })
+
+      const result = await extractTitleFromUrl(mockSecret, url)
+
+      expect(fetch).toHaveBeenCalledWith(`${WORKER_URL}/extract-title?url=${encodeURIComponent(url)}`, {
+        headers: { Authorization: mockSecret },
+      })
+      expect(result).toBe('Delicious Recipe Title')
+    })
+
+    test('handles URL encoding correctly', async () => {
+      const url = 'https://example.com/recipe?id=123&lang=en'
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ title: 'Test Title' }),
+      })
+
+      await extractTitleFromUrl(mockSecret, url)
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${WORKER_URL}/extract-title?url=https%3A%2F%2Fexample.com%2Frecipe%3Fid%3D123%26lang%3Den`,
+        { headers: { Authorization: mockSecret } }
+      )
+    })
+
+    test('returns null when extraction fails', async () => {
+      global.fetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+      })
+
+      const result = await extractTitleFromUrl(mockSecret, 'https://example.com')
+
+      expect(result).toBeNull()
+    })
+
+    test('returns null when network request fails', async () => {
+      global.fetch.mockRejectedValue(new Error('Network error'))
+
+      const result = await extractTitleFromUrl(mockSecret, 'https://example.com')
+
+      expect(result).toBeNull()
+    })
+
+    test('handles invalid JSON response gracefully', async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new Error('Invalid JSON')
+        },
+      })
+
+      const result = await extractTitleFromUrl(mockSecret, 'https://example.com')
+
+      expect(result).toBeNull()
+    })
+
+    test('handles empty response gracefully', async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ title: null }),
+      })
+
+      const result = await extractTitleFromUrl(mockSecret, 'https://example.com')
+
+      expect(result).toBeNull()
+    })
+
+    test('handles response with empty title', async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ title: '' }),
+      })
+
+      const result = await extractTitleFromUrl(mockSecret, 'https://example.com')
+
+      expect(result).toBe('')
     })
   })
 })

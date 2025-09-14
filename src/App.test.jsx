@@ -10,6 +10,7 @@ vi.mock('./api', () => ({
   softDeleteRecipe: vi.fn(),
   undeleteRecipe: vi.fn(),
   updateRecipe: vi.fn(),
+  extractTitleFromUrl: vi.fn(),
 }))
 
 const mockRecipes = [
@@ -38,6 +39,7 @@ describe('App', () => {
     api.addRecipe.mockResolvedValue({ id: 'test-id', title: 'Test Recipe' })
     api.softDeleteRecipe.mockResolvedValue({ id: 'test-id', deleted: true })
     api.updateRecipe.mockResolvedValue({ id: 'test-id', title: 'Updated' })
+    api.extractTitleFromUrl.mockResolvedValue('Extracted Title')
   })
 
   describe('Secret Code Authentication', () => {
@@ -145,9 +147,9 @@ describe('App', () => {
       await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
       
+      expect(screen.getByPlaceholderText('Recipe URL')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Recipe Title')).toBeInTheDocument()
       expect(screen.getByRole('combobox')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Recipe URL')).toBeInTheDocument()
     })
 
     test('switches between URL, Photo, and Text types', async () => {
@@ -194,16 +196,33 @@ describe('App', () => {
       const user = userEvent.setup()
       const newRecipe = { id: 'new-id', title: 'New Recipe', url: 'https://test.com', text: 'Notes' }
       api.addRecipe.mockResolvedValue(newRecipe)
+      // Don't auto-populate title for this test
+      api.extractTitleFromUrl.mockResolvedValue(null)
       
       render(<App />)
       
       await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
       
+      // Enter URL first (this will enable the title field)
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      await user.type(urlInput, 'https://test.com')
+      
+      // Wait for title field to be enabled
+      await waitFor(() => {
+        const titleInput = screen.getByPlaceholderText('Recipe Title')
+        expect(titleInput).not.toBeDisabled()
+      })
+      
+      // Enter title and notes
       await user.type(screen.getByPlaceholderText('Recipe Title'), 'New Recipe')
-      await user.type(screen.getByPlaceholderText('Recipe URL'), 'https://test.com')
       await user.type(screen.getByPlaceholderText('Additional notes'), 'Notes')
+      
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      await waitFor(() => {
+        expect(api.addRecipe).toHaveBeenCalled()
+      })
       
       expect(api.addRecipe).toHaveBeenCalledWith('test-secret', {
         title: 'New Recipe',
@@ -223,8 +242,8 @@ describe('App', () => {
       await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
       
-      await user.type(screen.getByPlaceholderText('Recipe Title'), 'New Recipe')
       await user.type(screen.getByPlaceholderText('Recipe URL'), 'https://test.com')
+      await user.type(screen.getByPlaceholderText('Recipe Title'), 'New Recipe')
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
       
       await waitFor(() => {
@@ -243,14 +262,289 @@ describe('App', () => {
       await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
       
       // Form should be visible
+      expect(screen.getByPlaceholderText('Recipe URL')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Recipe Title')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
       
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
       
       // Form should be hidden, Add Recipe button should be back
+      expect(screen.queryByPlaceholderText('Recipe URL')).not.toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Recipe Title')).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Add Recipe' })).toBeInTheDocument()
+    })
+  })
+
+  describe('URL-First Recipe Entry', () => {
+    beforeEach(() => {
+      localStorage.getItem.mockReturnValue('test-secret')
+      api.fetchRecipes.mockResolvedValue([])
+    })
+
+    test('URL field appears before title field in form', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      
+      // Check that URL input appears before title input in DOM order
+      const form = document.querySelector('.add-form')
+      const inputs = form.querySelectorAll('input[type="url"], input[type="text"]')
+      const urlIndex = Array.from(inputs).indexOf(urlInput)
+      const titleIndex = Array.from(inputs).indexOf(titleInput)
+      
+      expect(urlIndex).toBeLessThan(titleIndex)
+    })
+
+    test('title field is disabled when URL is empty', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      expect(titleInput).toBeDisabled()
+    })
+
+    test('title field becomes enabled after entering URL', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      
+      expect(titleInput).toBeDisabled()
+      
+      await user.type(urlInput, 'https://example.com')
+      
+      expect(titleInput).not.toBeDisabled()
+    })
+
+    test('auto-populates title on URL blur', async () => {
+      const user = userEvent.setup()
+      api.extractTitleFromUrl.mockResolvedValue('Auto-extracted Title')
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      
+      await user.type(urlInput, 'https://example.com')
+      await user.tab() // Blur the URL input
+      
+      await waitFor(() => {
+        expect(api.extractTitleFromUrl).toHaveBeenCalledWith('test-secret', 'https://example.com')
+        expect(titleInput).toHaveValue('Auto-extracted Title')
+      })
+    })
+
+    test('auto-populates title on URL paste', async () => {
+      const user = userEvent.setup()
+      api.extractTitleFromUrl.mockResolvedValue('Pasted URL Title')
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      
+      await user.click(urlInput)
+      await user.paste('https://pasted-example.com')
+      
+      await waitFor(() => {
+        expect(api.extractTitleFromUrl).toHaveBeenCalledWith('test-secret', 'https://pasted-example.com')
+        expect(titleInput).toHaveValue('Pasted URL Title')
+      })
+    })
+
+    test('does not overwrite manually edited title', async () => {
+      const user = userEvent.setup()
+      api.extractTitleFromUrl.mockResolvedValue('Auto Title')
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      
+      // First enter URL and let it auto-populate
+      await user.type(urlInput, 'https://example.com')
+      await user.tab()
+      
+      await waitFor(() => {
+        expect(titleInput).toHaveValue('Auto Title')
+      })
+      
+      // Manually edit the title
+      await user.clear(titleInput)
+      await user.type(titleInput, 'Manual Title')
+      
+      // Blur URL again
+      await user.click(urlInput)
+      await user.tab()
+      
+      // Should not overwrite manual edit
+      expect(titleInput).toHaveValue('Manual Title')
+      expect(api.extractTitleFromUrl).toHaveBeenCalledTimes(1)
+    })
+
+    test('shows loading state while fetching title', async () => {
+      const user = userEvent.setup()
+      // Mock a delayed response
+      let resolveTitle
+      api.extractTitleFromUrl.mockReturnValue(new Promise(resolve => {
+        resolveTitle = resolve
+      }))
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      
+      await user.type(urlInput, 'https://example.com')
+      await user.tab()
+      
+      // Should show fetching state
+      expect(screen.getByPlaceholderText('Fetching title...')).toBeInTheDocument()
+      
+      // Title input should be disabled during fetch
+      const titleInput = screen.getByPlaceholderText('Fetching title...')
+      expect(titleInput).toBeDisabled()
+      
+      // Resolve the promise
+      resolveTitle('Fetched Title')
+      
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Recipe Title')).toBeInTheDocument()
+        expect(screen.getByDisplayValue('Fetched Title')).toBeInTheDocument()
+      })
+    })
+
+    test('handles title extraction failure gracefully', async () => {
+      const user = userEvent.setup()
+      api.extractTitleFromUrl.mockResolvedValue(null)
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      
+      await user.type(urlInput, 'https://example.com')
+      await user.tab()
+      
+      await waitFor(() => {
+        expect(api.extractTitleFromUrl).toHaveBeenCalledWith('test-secret', 'https://example.com')
+      })
+      
+      // Title should remain empty but enabled
+      expect(titleInput).toHaveValue('')
+      expect(titleInput).not.toBeDisabled()
+    })
+
+    test('resets title manual edit flag when switching form types', async () => {
+      const user = userEvent.setup()
+      api.extractTitleFromUrl.mockResolvedValue('Auto Title')
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      const typeSelect = screen.getByRole('combobox')
+      
+      // Enter URL and manually edit title
+      await user.type(urlInput, 'https://example.com')
+      await user.tab()
+      await waitFor(() => expect(titleInput).toHaveValue('Auto Title'))
+      
+      await user.clear(titleInput)
+      await user.type(titleInput, 'Manual Title')
+      
+      // Switch to photo type and back to URL
+      await user.selectOptions(typeSelect, 'photo')
+      await user.selectOptions(typeSelect, 'url')
+      
+      // Wait for the form to reset first
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Recipe URL')).toHaveValue('')
+      })
+      
+      // Should allow auto-population again
+      const newUrlInput = screen.getByPlaceholderText('Recipe URL')
+      await user.type(newUrlInput, 'https://new-example.com')
+      await user.tab()
+      
+      await waitFor(() => {
+        expect(api.extractTitleFromUrl).toHaveBeenLastCalledWith('test-secret', 'https://new-example.com')
+      })
+    })
+
+    test('clears manual edit flag when cancelling form', async () => {
+      const user = userEvent.setup()
+      api.extractTitleFromUrl.mockResolvedValue('Auto Title')
+      
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      const titleInput = screen.getByPlaceholderText('Recipe Title')
+      
+      // Enter URL and manually edit title
+      await user.type(urlInput, 'https://example.com')
+      await user.tab()
+      await waitFor(() => expect(titleInput).toHaveValue('Auto Title'))
+      
+      await user.clear(titleInput)
+      await user.type(titleInput, 'Manual Title')
+      
+      // Cancel form
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      
+      // Re-open form - should allow auto-population again
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const newUrlInput = screen.getByPlaceholderText('Recipe URL')
+      await user.type(newUrlInput, 'https://new-example.com')
+      await user.tab()
+      
+      await waitFor(() => {
+        expect(api.extractTitleFromUrl).toHaveBeenCalledWith('test-secret', 'https://new-example.com')
+      })
+    })
+
+    test('URL input has autofocus in URL mode', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+      
+      await waitFor(() => screen.getByRole('button', { name: 'Add Recipe' }))
+      await user.click(screen.getByRole('button', { name: 'Add Recipe' }))
+      
+      const urlInput = screen.getByPlaceholderText('Recipe URL')
+      expect(urlInput).toHaveFocus()
     })
   })
 

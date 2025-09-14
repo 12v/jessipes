@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import './App.css';
-import { fetchRecipes, addRecipe, softDeleteRecipe, undeleteRecipe, updateRecipe } from './api';
+import { fetchRecipes, addRecipe, softDeleteRecipe, undeleteRecipe, updateRecipe, extractTitleFromUrl } from './api';
 
 const LOCAL_SECRET_KEY = 'jessipes_cloudflare_secret';
 
@@ -21,6 +21,8 @@ function App() {
   const [showConfirmDelete, setShowConfirmDelete] = useState(null);
   const [showDeleted, setShowDeleted] = useState(false);
   const [undeletingIds, setUndeletingIds] = useState(new Set());
+  const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
+  const [fetchingTitle, setFetchingTitle] = useState(false);
 
 
   useEffect(() => {
@@ -67,9 +69,50 @@ function App() {
       setRecipes(prev => [addedRecipe, ...prev]);
       setShowAdd(false);
       setNewRecipe({ url: '', photo: null, title: '', text: '' });
+      setTitleManuallyEdited(false);
     } catch (error) {
       console.error('Failed to add recipe:', error);
       alert('Failed to add recipe. Please try again.');
+    }
+  }
+
+  async function fetchTitleForUrl(url) {
+    if (!url || titleManuallyEdited || newRecipe.title) return;
+    
+    setFetchingTitle(true);
+    try {
+      const title = await extractTitleFromUrl(secret, url);
+      if (title && !titleManuallyEdited) {
+        setNewRecipe(prev => ({ ...prev, title }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch title:', error);
+    } finally {
+      setFetchingTitle(false);
+    }
+  }
+
+  function handleUrlBlur() {
+    if (newRecipe.url) {
+      fetchTitleForUrl(newRecipe.url);
+    }
+  }
+
+  async function handleUrlPaste(e) {
+    const pastedText = e.clipboardData.getData('text');
+    if (pastedText) {
+      // Update the URL state first
+      setNewRecipe(prev => ({ ...prev, url: pastedText }));
+      // Then fetch the title
+      setTimeout(() => fetchTitleForUrl(pastedText), 0);
+    }
+  }
+
+  function handleTitleChange(e) {
+    const value = e.target.value;
+    setNewRecipe({ ...newRecipe, title: value });
+    if (value !== '') {
+      setTitleManuallyEdited(true);
     }
   }
 
@@ -186,18 +229,15 @@ function App() {
       </div>
       {showAdd && (
         <form onSubmit={handleAddRecipe} className="add-form">
-          <select value={addType} onChange={e => setAddType(e.target.value)}>
+          <select value={addType} onChange={e => {
+            setAddType(e.target.value);
+            setTitleManuallyEdited(false);
+            setNewRecipe({ url: '', photo: null, title: '', text: '' });
+          }}>
             <option value="url">URL</option>
             <option value="photo">Photo</option>
             <option value="text">Text</option>
           </select>
-          <input
-            type="text"
-            placeholder="Recipe Title"
-            value={newRecipe.title}
-            onChange={e => setNewRecipe({ ...newRecipe, title: e.target.value })}
-            required
-          />
           {addType === 'url' && (
             <>
               <input
@@ -205,6 +245,17 @@ function App() {
                 placeholder="Recipe URL"
                 value={newRecipe.url}
                 onChange={e => setNewRecipe({ ...newRecipe, url: e.target.value })}
+                onBlur={handleUrlBlur}
+                onPaste={handleUrlPaste}
+                required
+                autoFocus
+              />
+              <input
+                type="text"
+                placeholder={fetchingTitle ? "Fetching title..." : "Recipe Title"}
+                value={newRecipe.title}
+                onChange={handleTitleChange}
+                disabled={!newRecipe.url || fetchingTitle}
                 required
               />
               <textarea
@@ -216,6 +267,13 @@ function App() {
           )}
           {addType === 'photo' && (
             <>
+              <input
+                type="text"
+                placeholder="Recipe Title"
+                value={newRecipe.title}
+                onChange={e => setNewRecipe({ ...newRecipe, title: e.target.value })}
+                required
+              />
               <input
                 type="file"
                 accept="image/*"
@@ -230,16 +288,29 @@ function App() {
             </>
           )}
           {addType === 'text' && (
-            <textarea
-              placeholder="Recipe Instructions"
-              value={newRecipe.text}
-              onChange={e => setNewRecipe({ ...newRecipe, text: e.target.value })}
-              required
-            />
+            <>
+              <input
+                type="text"
+                placeholder="Recipe Title"
+                value={newRecipe.title}
+                onChange={e => setNewRecipe({ ...newRecipe, title: e.target.value })}
+                required
+              />
+              <textarea
+                placeholder="Recipe Instructions"
+                value={newRecipe.text}
+                onChange={e => setNewRecipe({ ...newRecipe, text: e.target.value })}
+                required
+              />
+            </>
           )}
           <div className="add-buttons">
             <button type="submit">Add Recipe</button>
-            <button type="button" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button type="button" onClick={() => {
+              setShowAdd(false);
+              setTitleManuallyEdited(false);
+              setNewRecipe({ url: '', photo: null, title: '', text: '' });
+            }}>Cancel</button>
           </div>
         </form>
       )}

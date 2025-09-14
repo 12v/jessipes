@@ -900,4 +900,270 @@ describe('Cloudflare Worker', () => {
       expect(response.headers.get('Content-Type')).toBe('application/json')
     })
   })
+
+  describe('Title Extraction', () => {
+    beforeEach(() => {
+      global.fetch = vi.fn()
+    })
+
+    test('extracts title from OpenGraph meta tag', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <meta property="og:title" content="Recipe Title from OG" />
+          <title>Fallback Title</title>
+        </head>
+        </html>
+      `
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.title).toBe('Recipe Title from OG')
+    })
+
+    test('falls back to Twitter card title', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <meta name="twitter:title" content="Recipe Title from Twitter" />
+          <title>Fallback Title</title>
+        </head>
+        </html>
+      `
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.title).toBe('Recipe Title from Twitter')
+    })
+
+    test('falls back to title tag', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <title>Recipe Title from Title Tag</title>
+        </head>
+        </html>
+      `
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.title).toBe('Recipe Title from Title Tag')
+    })
+
+    test('falls back to domain name when no title found', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+        </head>
+        </html>
+      `
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.title).toBe('example.com')
+    })
+
+    test('handles HTML entities in title', async () => {
+      const mockHtml = `
+        <html>
+        <head>
+          <title>Recipe &amp; Cooking &lt;Guide&gt;</title>
+        </head>
+        </html>
+      `
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(mockHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.title).toBe('Recipe & Cooking <Guide>')
+    })
+
+    test('returns error for missing URL parameter', async () => {
+      const request = createRequest('https://example.com/extract-title', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('URL parameter required')
+    })
+
+    test('returns error for invalid URL', async () => {
+      const request = createRequest('https://example.com/extract-title?url=http://localhost/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Invalid URL')
+    })
+
+    test('handles timeout gracefully', async () => {
+      const abortError = new Error('Request timed out')
+      abortError.name = 'AbortError'
+      
+      global.fetch.mockImplementation(() => new Promise((resolve, reject) => {
+        setTimeout(() => reject(abortError), 100)
+      }))
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(408)
+      expect(data.error).toBe('Request timed out')
+    })
+
+    test('handles non-HTML content type', async () => {
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'application/json' },
+      })
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/api', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('URL does not return HTML')
+    })
+
+    test('handles large HTML responses', async () => {
+      const largeHtml = 'x'.repeat(1024 * 1024 + 1) // Over 1MB
+
+      global.fetch.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'text/html' },
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(largeHtml) })
+              .mockResolvedValueOnce({ done: true })
+          })
+        }
+      })
+
+      const request = createRequest('https://example.com/extract-title?url=https://example.com/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to extract title')
+    })
+
+    test('blocks SSRF attempts', async () => {
+      const request = createRequest('https://example.com/extract-title?url=http://192.168.1.1/page', {
+        headers: { Authorization: 'test-secret' },
+      })
+
+      const response = await worker.fetch(request, env)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Invalid URL')
+      expect(global.fetch).not.toHaveBeenCalled()
+    })
+  })
 })
