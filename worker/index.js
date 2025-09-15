@@ -85,7 +85,7 @@ function extractMetaContent(html, property, name = null) {
 }
 
 // Extract title from HTML content
-async function extractTitle(html, url) {
+async function extractTitle(html) {
     try {
         // Try OpenGraph title first
         let title = extractMetaContent(html, 'og:title');
@@ -107,10 +107,6 @@ async function extractTitle(html, url) {
                 .replace(/&#x2F;/g, '/')
                 .trim();
         }
-
-        // Fallback to domain name
-        const urlObj = new URL(url);
-        return urlObj.hostname;
     } catch (error) {
         console.warn('Error extracting title:', error);
         return null;
@@ -329,7 +325,7 @@ export default {
             // Handle title extraction
             if (url.pathname === '/extract-title' && request.method === 'GET') {
                 const targetUrl = url.searchParams.get('url');
-                
+
                 if (!targetUrl) {
                     return new Response(
                         JSON.stringify({ error: 'URL parameter required' }),
@@ -398,10 +394,10 @@ export default {
                         chunks.reduce((acc, chunk) => [...acc, ...chunk], [])
                     ));
 
-                    const title = await extractTitle(html, targetUrl);
-                    
+                    const title = await extractTitle(html);
+
                     return new Response(
-                        JSON.stringify({ title: title || 'Untitled' }),
+                        JSON.stringify({ title: title || '' }),
                         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                     );
                 } catch (error) {

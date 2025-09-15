@@ -1004,7 +1004,7 @@ describe('Cloudflare Worker', () => {
       expect(data.title).toBe('Recipe Title from Title Tag')
     })
 
-    test('falls back to domain name when no title found', async () => {
+    test('returns empty string when no title found', async () => {
       const mockHtml = `
         <html>
         <head>
@@ -1032,7 +1032,7 @@ describe('Cloudflare Worker', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.title).toBe('example.com')
+      expect(data.title).toBe('')
     })
 
     test('handles HTML entities in title', async () => {
@@ -1094,7 +1094,7 @@ describe('Cloudflare Worker', () => {
     test('handles timeout gracefully', async () => {
       const abortError = new Error('Request timed out')
       abortError.name = 'AbortError'
-      
+
       global.fetch.mockImplementation(() => new Promise((resolve, reject) => {
         setTimeout(() => reject(abortError), 100)
       }))
