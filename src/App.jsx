@@ -23,6 +23,7 @@ function App() {
   const [undeletingIds, setUndeletingIds] = useState(new Set());
   const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
   const [fetchingTitle, setFetchingTitle] = useState(false);
+  const [titleFetchedForUrl, setTitleFetchedForUrl] = useState('');
 
 
   useEffect(() => {
@@ -70,6 +71,7 @@ function App() {
       setShowAdd(false);
       setNewRecipe({ url: '', photo: null, title: '', text: '' });
       setTitleManuallyEdited(false);
+      setTitleFetchedForUrl('');
     } catch (error) {
       console.error('Failed to add recipe:', error);
       alert('Failed to add recipe. Please try again.');
@@ -77,9 +79,10 @@ function App() {
   }
 
   async function fetchTitleForUrl(url) {
-    if (!url || titleManuallyEdited || newRecipe.title) return;
-    
+    if (!url || titleManuallyEdited || titleFetchedForUrl === url) return;
+
     setFetchingTitle(true);
+    setTitleFetchedForUrl(url);
     try {
       const title = await extractTitleFromUrl(secret, url);
       if (title && !titleManuallyEdited) {
@@ -95,16 +98,6 @@ function App() {
   function handleUrlBlur() {
     if (newRecipe.url) {
       fetchTitleForUrl(newRecipe.url);
-    }
-  }
-
-  async function handleUrlPaste(e) {
-    const pastedText = e.clipboardData.getData('text');
-    if (pastedText) {
-      // Update the URL state first
-      setNewRecipe(prev => ({ ...prev, url: pastedText }));
-      // Then fetch the title
-      setTimeout(() => fetchTitleForUrl(pastedText), 0);
     }
   }
 
@@ -138,7 +131,7 @@ function App() {
 
   async function handleUndelete(recipe) {
     if (undeletingIds.has(recipe.id)) return;
-    
+
     setUndeletingIds(prev => new Set([...prev, recipe.id]));
     try {
       const updatedRecipe = await undeleteRecipe(secret, recipe.id);
@@ -204,24 +197,24 @@ function App() {
         recipe.url?.toLowerCase().includes(searchLower)
       );
     })();
-    
+
     const matchesDeletedFilter = showDeleted ? recipe.deleted : !recipe.deleted;
-    
+
     return matchesSearch && matchesDeletedFilter;
   });
 
   return (
     <div className="container">
       <h1>Jessipes</h1>
-      
+
       <div className="top-buttons">
         {!showAdd && (
           <button onClick={() => setShowAdd(true)} className="primary-button solid add-recipe-button">
             Add Recipe
           </button>
         )}
-        <button 
-          onClick={() => setShowDeleted(!showDeleted)} 
+        <button
+          onClick={() => setShowDeleted(!showDeleted)}
           className={`primary-button outline ${showDeleted ? 'active' : ''}`}
         >
           {showDeleted ? 'Show Active' : 'Show Deleted'}
@@ -232,6 +225,7 @@ function App() {
           <select value={addType} onChange={e => {
             setAddType(e.target.value);
             setTitleManuallyEdited(false);
+            setTitleFetchedForUrl('');
             setNewRecipe({ url: '', photo: null, title: '', text: '' });
           }}>
             <option value="url">URL</option>
@@ -244,9 +238,17 @@ function App() {
                 type="url"
                 placeholder="Recipe URL"
                 value={newRecipe.url}
-                onChange={e => setNewRecipe({ ...newRecipe, url: e.target.value })}
+                onChange={e => {
+                  const newUrl = e.target.value;
+                  const oldUrl = newRecipe.url;
+                  setNewRecipe({ ...newRecipe, url: newUrl });
+                  // Only fetch title if this looks like a paste (substantial change in length)
+                  // A paste typically adds many characters at once
+                  if ((newUrl.length - oldUrl.length > 10) && (newUrl.startsWith('http://') || newUrl.startsWith('https://'))) {
+                    fetchTitleForUrl(newUrl);
+                  }
+                }}
                 onBlur={handleUrlBlur}
-                onPaste={handleUrlPaste}
                 required
                 autoFocus
               />
@@ -309,12 +311,13 @@ function App() {
             <button type="button" onClick={() => {
               setShowAdd(false);
               setTitleManuallyEdited(false);
+              setTitleFetchedForUrl('');
               setNewRecipe({ url: '', photo: null, title: '', text: '' });
             }}>Cancel</button>
           </div>
         </form>
       )}
-      
+
       <input
         type="text"
         placeholder="Search recipes..."
@@ -322,7 +325,7 @@ function App() {
         onChange={e => setSearchTerm(e.target.value)}
         className="search-input"
       />
-      
+
       {loading ? <p>Loading...</p> : (
         <ul className="recipe-list">
           {filteredRecipes.map(recipe => (
@@ -385,8 +388,8 @@ function App() {
                         <button onClick={() => handleDelete(recipe)} className="delete-btn">Delete</button>
                       </>
                     ) : (
-                      <button 
-                        onClick={() => handleUndelete(recipe)} 
+                      <button
+                        onClick={() => handleUndelete(recipe)}
                         className="undelete-btn"
                         disabled={undeletingIds.has(recipe.id)}
                       >
@@ -400,7 +403,7 @@ function App() {
           ))}
         </ul>
       )}
-      
+
       {zoomedImage && (
         <div className="image-zoom-overlay" onClick={(e) => {
           // Only close if clicking the overlay background, not the image
@@ -410,7 +413,7 @@ function App() {
           }
         }}>
           <div className="image-zoom-container">
-            <button 
+            <button
               className="back-button"
               onClick={(e) => {
                 e.stopPropagation();
@@ -429,7 +432,7 @@ function App() {
           </div>
         </div>
       )}
-      
+
       {showConfirmDelete && (
         <div className="modal-overlay" onClick={cancelDelete}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
